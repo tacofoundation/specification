@@ -26,49 +26,54 @@ The FAIR principles (*Wilkinson et al., 2016*), Findability, Accessibility, Inte
 
 To close these gaps, we propose TACO (Transparent Access to Cloud Optimized Datasets), a FAIR-compliant, cloud-optimized specification for organizing AI-ready EO datasets. TACO files are self-contained, portable, and complete, encapsulating all the information required for sample interpretation without relying on external files or software dependencies. Built on widely supported technologies like GDAL and Apache Parquet, TACO allows for seamless integration across multiple programming languages.
 
+<a name="fig1">
 <p align="center">
   <img src="https://github.com/user-attachments/assets/17a84407-0cd1-4da4-9e0d-2e22beda7087" width="50%">
 </p>
+</a>
 
 <p><strong>Figure 1:</strong> Conceptual organization of the TACO Specification. The Data Model (A) is composed of two layers: Logical Structure (describing the relationships between data and metadata) and Semantic Description (standardised metadata definitions). These layers collectively define the Data Format (B), specifying how data is stored, which can be created and accessed through a dedicated API (C) consisting of the ToolBox (for creation) and the Reader (for reading).</p>
 
 
 ### The specification
 
-The TACO specification defines the data model, file format, and API ([**Figure 1**](#fig1)). Here, the **_data model_** refers to an abstract representation of a dataset that defines the rules, constraints, and relationships connecting metadata to the associated data assets (**Figure 2**). The **_data format_** defines the physical representation of the dataset, specifying how data and metadata are encoded, stored, and organized. Finally, the API specifies the programmatic methods and conventions by which users and applications can interact with TACO-compliant datasets. By providing a unique and well-structured interface, the API abstracts the underlying complexity of the data format and data model, allowing data users to query, modify, and even integrate multiple TACO datasets.
+The TACO specification defines the data model, file format, and API ([**Figure 1**](#fig1)). Here, the **_data model_** refers to an abstract representation of a dataset that defines the rules, constraints, and relationships connecting metadata to the associated data assets ([**Figure 2**](#fig2)). The **_data format_** defines the physical representation of the dataset, specifying how data and metadata are encoded, stored, and organized. Finally, the API specifies the programmatic methods and conventions by which users and applications can interact with TACO-compliant datasets. By providing a unique and well-structured interface, the API abstracts the underlying complexity of the data format and data model, allowing data users to query, modify, and even integrate multiple TACO datasets.
 
 #### The Data Model
 
-The logical structure of the TACO data model is illustrated in the UML diagram in **Figure 2**. At its core, a TACO dataset is defined as a structured collection of minimal self-contained data units, called SAMPLEs, organized within a container, called TORTILLA, and enriched by dataset-level metadata.
+The logical structure of the TACO data model is illustrated in the UML diagram in [**Figure 2**](#fig2). At its core, a TACO dataset is defined as a structured collection of minimal self-contained data units, called SAMPLEs, organized within a container, called TORTILLA, and enriched by dataset-level metadata.
 
+<a name="fig2">
 <p align="center">
 <img src="https://github.com/user-attachments/assets/f41109aa-357f-4a2c-b348-e39192a9ccc6" alt="TACO logical structure" width="75%">
 </p>
+</a>
 <p><strong>Figure 2:</strong> TACO logical structure. A <code>SAMPLE</code> encapsulates raw data and metadata, with a pointer to a <code>DataSource</code>. Supported data sources include <code>GDALDataset</code>, <code>BYTES</code>, and <code>TORTILLA</code>. TACO extends <code>TORTILLA</code> by adding high-level dataset metadata.</p>
 
-
-A SAMPLE represents the minimal self-contained and smallest indivisible unit for AI training and evaluation. Each SAMPLE encapsulates the actual data and metadata (**Figure 3**). Importantly, each SAMPLE contains a pointer to a DataSource that specifies how to access the underlying data. TACO supports three primary DataSource types: (i) GDALDataset, for raster or vector data readable by the GDAL library; (ii) BYTES, representing raw byte streams for unsupported or custom formats; and (iii) TORTILLA. While the BYTES option is available, GDALDataset is recommended for partial read support.
+A SAMPLE represents the minimal self-contained and smallest indivisible unit for AI training and evaluation. Each SAMPLE encapsulates the actual data and metadata ([**Figure 3**](#fig3)). Importantly, each SAMPLE contains a pointer to a DataSource that specifies how to access the underlying data. TACO supports three primary DataSource types: (i) GDALDataset, for raster or vector data readable by the GDAL library; (ii) BYTES, representing raw byte streams for unsupported or custom formats; and (iii) TORTILLA. While the BYTES option is available, GDALDataset is recommended for partial read support.
 
 The TORTILLA serves as a container that manages multiple SAMPLE instances. All SAMPLEs within a TORTILLA share a uniform metadata schema, enabling the combined metadata to be represented as a dataframe. Since TORTILLA implements the DataSource interface, it can be referenced within a SAMPLE, enabling recursive nesting of TORTILLA containers. This design supports the representation of hierarchical datasets while preserving the modularity and self-contained nature of individual SAMPLEs.
 
-Building upon TORTILLA, the TACO class extends this container structure by adding comprehensive dataset-level metadata (**Figure 4**). This additional metadata provides a semantic overview of the collection, supporting dataset management, discovery, and interoperability.
+Building upon TORTILLA, the TACO class extends this container structure by adding comprehensive dataset-level metadata ([**Figure 4**](#fig4)). This additional metadata provides a semantic collection overview, supporting dataset management, discovery, and interoperability.
 
-<a name="fig1">
-<figure style="text-align: center;">
-  <img src="logical_taco.png" alt="TACO logical structure" width="75%">
-  <figcaption><strong>Figure:</strong> TACO logical structure. A <code>SAMPLE</code> encapsulates raw data and metadata, with a pointer to a <code>DataSource</code>. Supported data sources include <code>GDALDataset</code>, <code>BYTES</code>, and <code>TORTILLA</code>. TACO extends <code>TORTILLA</code> by adding high-level dataset metadata.</figcaption>
-</figure>
-</a>
+<a name="fig3"></a>
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/52dad4b8-d680-4f43-b666-23572e48df2e" alt="Semantic description of SAMPLE metadata" width="80%">
+</p>
+
+<p><strong>Figure 3:</strong> Semantic description of the <code>SAMPLE</code> metadata. The <code>Metadata</code> class contains essential file identification and storage fields. An abstract <code>Extension</code> class defines the interface for optional metadata, allowing for expansion. Specific extensions (marked with <code>&lt;&lt;Extension&gt;&gt;</code> in the header) like <code>STAC</code>, <code>RAI</code>, <code>STATS</code>, <code>Flood</code>, and <code>Methane</code> inherit from <code>Extension</code>, each adding domain-specific attributes. This design enables adding extensions without modifying the core <code>Metadata</code> structure.</p>
+
 
 #### Semantic Description
 
-This section defines the structure of the metadata associated with each individual SAMPLE (**Figure 3**) and with the TACO dataset (**Figure 4**) as a whole. Metadata is organized into three categories: (1) Core (required fields), (2) Optional (non-essential fields providing additional context or supporting specific functionalities), and (3) Automatic (fields automatically generated by the TACO API; generation is based exclusively on core metadata and never on optional fields).
+This section defines the structure of the metadata associated with each individual SAMPLE ([**Figure 3**](#fig3)) and with the TACO dataset ([**Figure 4**](#fig4)) as a whole. Metadata is organized into three categories: (1) Core (required fields), (2) Optional (non-essential fields providing additional context or supporting specific functionalities), and (3) Automatic (fields automatically generated by the TACO API; generation is based exclusively on core metadata and never on optional fields).
 
-At the `SAMPLE` level, two core attributes are required: `tortilla:id`, a unique string that identifies each `SAMPLE`, and `tortilla:file_format`, which specifies the data format—either `TORTILLA`, `BYTES`, or any format supported by GDAL. An optional field, `tortilla:data_split`, indicates the dataset partition to which the sample belongs (e.g., training, validation, or testing). Additionally, the fields `tortilla:offset` (denoting the position within a TORTILLA archive) and `tortilla:length` (the sample's size) are automatically computed by the TACO API (**Table 1**). The current specification supports three optional metadata extensions: STAC, Responsible AI (RAI), and sample statistics (STATS), which are described in detail in the `SAMPLE` Extensions section.
+At the `SAMPLE` level, two core attributes are required: `tortilla:id`, a unique string that identifies each `SAMPLE`, and `tortilla:file_format`, which specifies the data format—either `TORTILLA`, `BYTES`, or any format supported by GDAL. An optional field, `tortilla:data_split`, indicates the dataset partition to which the sample belongs (e.g., training, validation, or testing). Additionally, the fields `tortilla:offset` (denoting the position within a TORTILLA archive) and `tortilla:length` (the sample's size) are automatically computed by the TACO API ([**Table 1**](#tab1)). The current specification supports three optional metadata extensions: STAC, Responsible AI (RAI), and sample statistics (STATS), which are described in detail in the [`SAMPLE` Extensions section](#sample-level-extension).
 
-At the dataset level, TACO defines a `Metadata` class that encapsulates both core and optional fields describing the dataset’s provenance, structure, and content (**Table 1**). Core fields include a persistent identifier (`id`), versioning information (`taco_version`, `dataset_version`), spatiotemporal coverage (`extent`), a human-readable description (`description`), licensing details (`licenses`), and contact information for both dataset providers (`providers`) and the individual responsible for converting the data into TACO (`data_curator`). Several of these core fields employ nested structures or lists to represent complex information. For example, both `providers` and `data_curator` are modeled as lists of `Contact` objects (**Table 2**), each containing attributes such as name, affiliation, and email. The `extent` field (**Table 3**) uses nested list structures to capture spatial and temporal bounds, while the `licenses` field is represented by a `Licenses` class that can wrap one or more license entries.
 
-Optional fields in the `Metadata` class include a dataset title, descriptive keywords, and high-level information about intended use, such as the task type (**Table 4**) and split strategy (**Table 5**). Links to external resources can be provided via the optional `raw_link` and `discuss_link` fields, both represented by a `Hyperlink` class that includes an `href` and a textual `description` (**Table 6**). TACO metadata is designed to be extensible: additional modules can be integrated by inheriting from an abstract `Extension` class. Version 0.2.0 of the specification supports three such extensions at the dataset level: Responsible AI (RAI), Publications, and Sensor metadata (**Table 7**, **Table 8**, and **Table 9**, respectively).
+At the dataset level, TACO defines a `Metadata` class that encapsulates both core and optional fields describing the dataset’s provenance, structure, and content ([**Table 1**](#tab1)). Core fields include a persistent identifier (`id`), versioning information (`taco_version`, `dataset_version`), spatiotemporal coverage (`extent`), a human-readable description (`description`), licensing details (`licenses`), and contact information for both dataset providers (`providers`) and the individual responsible for converting the data into TACO (`data_curator`). Several of these core fields employ nested structures or lists to represent complex information. For example, both `providers` and `data_curator` are modeled as lists of `Contact` objects ([**Table 2**](#tab2)), each containing attributes such as name, affiliation, and email. The `extent` field ([**Table 3**](#tab3)) uses nested list structures to capture spatial and temporal bounds, while the `licenses` field is represented by a `Licenses` class that can wrap one or more license entries.
+
+Optional fields in the `Metadata` class include a dataset title, descriptive keywords, and high-level information about intended use, such as the task type ([**Table 4**](#tab4)) and split strategy ([**Table 5**](#tab5)). Links to external resources can be provided via the optional `raw_link` and `discuss_link` fields, both represented by a `Hyperlink` class that includes an `href` and a textual `description` ([**Table 6**](#tab6)). TACO metadata is designed to be extensible: additional modules can be integrated by inheriting from an abstract `Extension` class. Check the [`TACO` Extensions section](#taco-level-extension) for more details.
 
 #### Data format
 
@@ -107,5 +112,11 @@ gdalinfo -hist -approx_stats -json -nofl
 The FOOTER’s offset and length values, stored in the file HEADER, point to the location of the first Parquet file. Each Parquet file contains file-level key-value metadata, encoded as a JSON string, using the key `"pointer"` and the format `OFFSETLENGTH(A, B)` where `A` and `B` represent the byte offset and length of the subsequent Parquet file. This process continues until the `"pointer"` is set to `NULL`, signaling the end of the metadata chain. Every Parquet file includes a column named `root`, which functions as a primary key for maintaining the relational structure across the different levels.
 
 
-### Extensions
+## Extensions
+
+### SAMPLE level extension
+
+
+### TACO level extension
+
 
