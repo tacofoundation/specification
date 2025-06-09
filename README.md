@@ -35,7 +35,7 @@ To close these gaps, we propose TACO (Transparent Access to Cloud Optimized Data
 
 ### The specification
 
-The TACO specification defines the data model, file format, and API (**Figure 1**). Here, the **_data model_** refers to an abstract representation of a dataset that defines the rules, constraints, and relationships connecting metadata to the associated data assets (**Figure 2**). The **_data format_** defines the physical representation of the dataset, specifying how data and metadata are encoded, stored, and organized. Finally, the API specifies the programmatic methods and conventions by which users and applications can interact with TACO-compliant datasets. By providing a unique and well-structured interface, the API abstracts the underlying complexity of the data format and data model, allowing data users to query, modify, and even integrate multiple TACO datasets.
+The TACO specification defines the data model, file format, and API ([**Figure 1**](#fig1)). Here, the **_data model_** refers to an abstract representation of a dataset that defines the rules, constraints, and relationships connecting metadata to the associated data assets (**Figure 2**). The **_data format_** defines the physical representation of the dataset, specifying how data and metadata are encoded, stored, and organized. Finally, the API specifies the programmatic methods and conventions by which users and applications can interact with TACO-compliant datasets. By providing a unique and well-structured interface, the API abstracts the underlying complexity of the data format and data model, allowing data users to query, modify, and even integrate multiple TACO datasets.
 
 #### The Data Model
 
@@ -53,10 +53,12 @@ The TORTILLA serves as a container that manages multiple SAMPLE instances. All S
 
 Building upon TORTILLA, the TACO class extends this container structure by adding comprehensive dataset-level metadata (**Figure 4**). This additional metadata provides a semantic overview of the collection, supporting dataset management, discovery, and interoperability.
 
+<a name="fig1">
 <figure style="text-align: center;">
   <img src="logical_taco.png" alt="TACO logical structure" width="75%">
   <figcaption><strong>Figure:</strong> TACO logical structure. A <code>SAMPLE</code> encapsulates raw data and metadata, with a pointer to a <code>DataSource</code>. Supported data sources include <code>GDALDataset</code>, <code>BYTES</code>, and <code>TORTILLA</code>. TACO extends <code>TORTILLA</code> by adding high-level dataset metadata.</figcaption>
 </figure>
+</a>
 
 #### Semantic Description
 
