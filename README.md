@@ -1,10 +1,10 @@
-## The TACO specification
-
-**_Current Version: 0.2.0 (Draft)_**
-
-**Future versions must remain backward-compatible with this standard.**
+# The TACO specification
 
 The terms "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document follow the definitions from [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt). The term "data user" refers to any individual or system accessing the data, "data provider" refers to the entity responsible for offering the data.
+
+## Version and schema
+
+**This is version 0.2.0 of the TACO specification**. The core data structures are defined through [UML diagrams](https://github.com/tacofoundation/specification) for easy inspection and integration. To validate TACO-compliant files, use the [TACO Toolbox](https://github.com/tacofoundation/taco-toolbox), which is available in Python, R, and Julia. **Future versions must remain backward-compatible with this one.**
 
 ### Summary
 
@@ -12,9 +12,8 @@ Geospatial communities have long relied on standardised formats for raster and v
 
 ### Introduction
 
-The rapid increase in Earth Observation (EO) data, combined with advances in AI and cloud computing, has unlocked new opportunities for scientific discovery and operational monitoring (Montillet et al., 2024; Eyring et al., 2024; Hagos et al., 2022). Modern applications range from methane superemitter detection (Vaughan et al., 2024) and burned area estimation (Ribeiro et al., 2023) to biodiversity tracking (Yeh et al., 2021) and global-scale weather forecasting (Rasp et al., 2020; Bi et al., 2023). These efforts increasingly rely on data-driven models, which require large volumes of curated, structured, and accessible EO data (Re-
-ichstein et al., 2019). However, preparing AI-ready EO datasets continues to be a significant challenge (Sambasivan et al., 2021; Francis & Czerkawski, 2024). Most datasets require extensive preprocessing and reformatting before being integrated into AI pipelines, and only a small fraction are usable “out of the box”. Although AI-ready EO datasets have grown substantially, with more than 500 now cataloged (Schmitt et al., 2023), they still lack a
-unified structure and consistent metadata conventions. This fragmentation hinders reproducibility, limits interoperability, and slows the development of AI (Dimitrovski et al., 2023; Long et al., 2021). These issues are especially critical for training foundation models, which rely on combining diverse sources (Marsocci et al., 2024).
+The rapid increase in Earth Observation (EO) data, combined with advances in AI and cloud computing, has unlocked new opportunities for scientific discovery and operational monitoring <span style="color:blue">(Montillet et al., 2024; Eyring et al., 2024; Hagos et al., 2022)</span>. Modern applications range from methane superemitter detection <span style="color:blue">(Vaughan et al., 2024)</span> and burned area estimation <span style="color:blue">(Ribeiro et al., 2023)</span> to biodiversity tracking <span style="color:blue">(Yeh et al., 2021)</span> and global-scale weather forecasting <span style="color:blue">(Rasp et al., 2020; Bi et al., 2023)</span>. These efforts increasingly rely on data-driven models, which require large volumes of curated, structured, and accessible EO data <span style="color:blue">(Reichstein et al., 2019)</span>. However, preparing AI-ready EO datasets continues to be a significant challenge <span style="color:blue">(Sambasivan et al., 2021; Francis & Czerkawski, 2024)</span>. Most datasets require extensive preprocessing and reformatting before being integrated into AI pipelines, and only a small fraction are usable “out of the box”. Although AI-ready EO datasets have grown substantially, with more than 500 now cataloged <span style="color:blue">(Schmitt et al., 2023)</span>, they still lack a unified structure and consistent metadata conventions. This fragmentation hinders reproducibility, limits interoperability, and slows the development of AI <span style="color:blue">(Dimitrovski et al., 2023; Long et al., 2021)</span>. These issues are especially critical for training foundation models, which rely on combining diverse sources <span style="color:blue">(Marsocci et al., 2024)</span>.
+
 
 Insights from scientific communities can guide the development of standardised, AI-ready EO datasets. Fields such as climate science and geographic information systems (GIS) have long struggled with data standardisation and provide valuable lessons through widely adopted formats like NetCDF (Treinish & Gough, 1987; Rew & Davis, 1990) and GeoTIFF (Ritter & Ruth, 1997; Devys et al., 2019). NetCDF was initially created as a binary format for scientific data.
 However, as its use has grown within the climate science community, it became evident that the existing specification did not sufficiently capture the complexity of domain-specific metadata. This realization led to the development of several metadata conventions, most notably the CF (Climate
