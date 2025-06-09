@@ -28,10 +28,10 @@ The FAIR principles (Wilkinson et al., 2016), Findability, Accessibility, Intero
 
 To close these gaps, we propose TACO (Transparent Access to Cloud Optimized Datasets), a FAIR-compliant, cloud-optimized specification for organizing AI-ready EO datasets. TACO files are self-contained, portable, and complete, encapsulating all the information required for sample interpretation without relying on external files or software dependencies. Built on widely supported technologies like GDAL and Apache Parquet, TACO allows for seamless integration across multiple programming languages. The remainder of this paper presents the TACO specification in detail and outlines directions for future development.
 
-<p align="center">
+<figure style="text-align: center;">
   <img src="https://github.com/user-attachments/assets/17a84407-0cd1-4da4-9e0d-2e22beda7087" width="50%">
-**Figure**: Conceptual organization of the TACO Specification. The Data Model (A) is composed of two layers: Logical Structure (describing the relationships   between data and metadata) and Semantic Description (standardised metadata definitions). These layers collectively define the Data Format (B), specifying how   data is stored, which can be created and accessed through a dedicated API (C) consisting of the ToolBox (for creation) and the Reader (for reading).
-</p>
+  <figcaption><strong>Figure:</strong> Conceptual organization of the TACO Specification. The Data Model (A) is composed of two layers: Logical Structure (describing the relationships between data and metadata) and Semantic Description (standardised metadata definitions). These layers collectively define the Data Format (B), specifying how data is stored, which can be created and accessed through a dedicated API (C) consisting of the ToolBox (for creation) and the Reader (for reading).</figcaption>
+</figure>
 
 
 
