@@ -228,12 +228,19 @@ The **TORTILLA** and **TACO** file formats are designed to efficiently store lar
 
 <sub><strong>Figure 5:</strong> Structure of the TACO and TORTILLA file format, used as the underlying container for SAMPLEs. The format consists of a 200-byte static header followed by a dynamic segment. The static section encodes file-level metadata including a magic number (MB), footer offset (FO) and length (FL), data partition (DP), and pointers to the metadata collection (CO and CL, only for TACO). The dynamic section serializes data blobs (DATA), sample-level descriptors (FOOTER), and, in the case of TACO files only, a dataset-level metadata block (COLLECTION) encoded in UTF-8 JSON.</sub>
 
-
 A **TACO** file extends the TORTILLA format by appending dataset-level metadata (the **COLLECTION**), encoded in JSON at the end of the file. This design ensures that both TORTILLA and TACO files are self-contained, portable, and complete, encapsulating all information required to interpret samples without reliance on external files or software dependencies.
 
 Each file begins with a fixed 200-byte **HEADER** that includes a 2-byte magic number, an 8-byte offset and length for the **FOOTER**, and an 8-byte data partition count indicating the dataset's number of segments. This count allows the TACO API to verify dataset completeness and reconstruct the full archive correctly. TACO files introduce two additional 8-byte fields for the **COLLECTION** offset and length. Both formats reserve unused space in the header for future use: 174 bytes in TORTILLA and 158 bytes in TACO.
 
 The TACO API (Section [**API**](#api)) automatically generates certain fields based on the input data. For instance, it records sample-level offsets and lengths as columns in the **FOOTER**, enabling efficient random access to individual samples (illustrated by the red dotted line in [**Figure 5**](#fig5)). To support multi-language interoperability and partial reads, TACO relies on GDAL’s Virtual File System (VFS), particularly the `/vsisubfile/` handler, which allows byte ranges within a TACO file to be treated as standalone `GDALDataset` objects. This enables fast random access without reading the entire **BLOB** region. TACO also supports cloud-optimized access, leveraging additional GDAL VFS handlers such as `/vsicurl/`, `/vsis3/`, `/vsiaz/`, `/vsigs/`, `/vsioss/`, and `/vsiswift/`, ensuring high-performance reads across diverse cloud storage platforms.
+
+
+<a name="fig6"></a>
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/ac910f8e-84d8-4b1a-bcbe-d46dba349692" width="80%">
+</p>
+
+<sub><strong>Figure 6:</strong> This diagram illustrates the key components of the TACO Toolbox API and their relationships. The Toolbox is responsible for creating, editing, and mapping between standards.</sub>
 
 #### API
 
@@ -245,9 +252,23 @@ The **Reader** component provides a simple interface to load and interact with T
 
 The Reader is designed to operate within a DataFrame interface in the target environment (e.g., R, Python, or Julia), mapping the `FOOTER` to a DataFrame object. Additionally, a `read` method must be implemented on the DataFrame to expose GDAL VFS access (Figure\~\ref{fig\:api\_reader}). Optional helper functions can also be included to perform sanity checks and validate file compliance with the TACO format specification.
 
+<a name="fig7"></a>
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/ac910f8e-84d8-4b1a-bcbe-d46dba349692" width="80%">
+</p>
+
+<sub><strong>Figure 7:</strong> Overview of the TACO Reader API. This diagram illustrates the core components and their interactions. The Reader parses the FOOTER of TACO and TORTILLA objects and converts them into a DataFrame. Individual SAMPLEs can then be accessed using the read method, which enables sample-level querying and downstream analysis.</sub>
 
 
-### Facilitating dataset streaming
+## Extensions
+
+### SAMPLE level extension
+
+
+### TACO level extension
+
+
+### Facilitating dataset streaming with TOGs
 
 Since version `0.0.2`, TACO supports fully streamable datasets, which is particularly advantageous for nested datasets—specifically, when TORTILLA files are used as the underlying data source. Streaming capabilities in TACO allow users to avoid copying data to local disk by enabling on-demand reading, thereby enhancing performance in cloud-based workflows. This approach significantly reduces the number of HTTP GET requests typically required when accessing individual samples. In non-streaming scenarios, inspecting each sample in a nested dataset results in a separate Parquet read per sample, which in cloud environments leads to additional HTTP requests, increasing both latency and cost.
 
@@ -260,13 +281,3 @@ gdalinfo -hist -approx_stats -json -nofl
 ```
 
 The FOOTER’s offset and length values, stored in the file HEADER, point to the location of the first Parquet file. Each Parquet file contains file-level key-value metadata, encoded as a JSON string, using the key `"pointer"` and the format `OFFSETLENGTH(A, B)` where `A` and `B` represent the byte offset and length of the subsequent Parquet file. This process continues until the `"pointer"` is set to `NULL`, signaling the end of the metadata chain. Every Parquet file includes a column named `root`, which functions as a primary key for maintaining the relational structure across the different levels.
-
-
-## Extensions
-
-### SAMPLE level extension
-
-
-### TACO level extension
-
-
