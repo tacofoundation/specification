@@ -526,9 +526,7 @@ Returns a **VFS (Virtual File System) GDAL string snippet**, representing a hand
   db.read("img1").read("lrf::2")
   ```
   
-Returns a **PyArrow Tensor** object corresponding to a fine-grained chunk (e.g., the third chunk) of the n-dimensional array within the `"lrf"` GeoTIFF.
-
-This progressive reading strategy optimizes I/O operations by avoiding unnecessary data loading, enabling scalable and efficient workflows in large, nested remote sensing datasets.
+Returns a [**PyArrow Tensor**](https://arrow.apache.org/docs/python/generated/pyarrow.Tensor.html) object corresponding to a fine-grained chunk (e.g., the third chunk) of the n-dimensional array within the `"lrf"` GeoTIFF. This progressive reading strategy optimizes I/O operations by avoiding unnecessary data loading, enabling scalable and efficient workflows in large, nested remote sensing datasets.
 
 
 #### TACO Optimized GeoTIFF (TOG) data object
@@ -547,4 +545,11 @@ When using streaming mode, the **data for each sample must be saved as a TACO Op
 | `overview`   | `"none"` | No OVERVIEWS MUST be generated                           |
 | `predictor`  | `"yes"`  | Enables predictor for better compression ratios          |
 
+#### Precomputed Histogram information
+
+Many preprocessing tasks in remote sensing and machine learning workflows require an understanding of histogram statistics. For example, normalizing pixel values between the 2.5th and 98.5th percentiles (p2.5 and p98.5) is a common practice to minimize the influence of outliers. Other typical applications include contrast stretching to enhance image visual quality and adaptive thresholding for feature detection based on intensity distribution.
+
+Generating histograms across all samples in a dataset requires a forward pass through the entire data, which can be computationally expensive, especially for large-scale or nested datasets. While tools like GDAL provide commands such as `gdalinfo -hist -approx_stats -json` to extract histogram metadata directly from images, this approach still necessitates reading all metadata before accessing the actual statistics, limiting efficiency in streaming scenarios.
+
+To overcome this limitation, we propose a new method for streaming datasets within TACO. Because TACO enforces that all samples share the same metadata schema and nested structure, we store precomputed histograms as TORTILLA with `special` TOG files. It is special because instead of the typical `tile=True` setting used for raster data, we save histograms with `tile=False`, storing them as stripped GeoTIFFs optimized for sequential reading. To simplify processing, histograms are standardized to a fixed width of 100 bins. The dataset values used to compute these histograms are normalized linearly between the global minimum and maximum of the dataset, then scaled to the 0–255 range. This quantization reduces precision but facilitates compact storage and efficient transmission. The primary goal is not to preserve absolute precision but to provide consistent, comparable histogram representations for normalization and statistical analysis. Utilizing this metadata, the TACO reader API can efficiently provide non-parametric statistics and histograms to users at the sample, subset, or entire dataset level.
 
