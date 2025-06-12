@@ -272,6 +272,145 @@ The Reader is designed to operate within a DataFrame interface in the target pro
 
 ### SAMPLE level extension
 
+Here is a **Markdown-compatible version** of your LaTeX document section, with HTML elements used where Markdown tables or formatting fall short (especially for wide and multiline content). This will render well on platforms like GitHub or Markdown-supported docs/blog engines.
+
+---
+
+### SAMPLE level extension
+
+#### STAC extension
+
+This section describes the integration of SpatioTemporal Asset Catalog (STAC) metadata at the item level, where each `SAMPLE` corresponds to a STAC Item. STAC provides a standardized schema for spatially and temporally contextualizing assets. Although our schema does not adopt the exact naming conventions defined in official STAC, the current `SAMPLE` STAC extension allows for a direct mapping between the two specifications.
+
+
+<table>
+  <thead>
+    <tr>
+      <th><strong>Field</strong></th>
+      <th><strong>Type</strong></th>
+      <th><strong>Details</strong></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>stac:crs</code></td>
+      <td>String</td>
+      <td><strong>CORE</strong>. The Coordinate Reference System (CRS), specified using a recognized authority (EPSG, ESRI or SR-ORG).</td>
+    </tr>
+    <tr>
+      <td><code>stac:geotransform</code></td>
+      <td>Array of Floats</td>
+      <td><strong>CORE</strong>. A 6-element array defining the affine transformation from pixel to spatial coordinates, following GDAL conventions:  
+        <ul>
+          <li><code>a</code>: Top-left x-coordinate of the upper-left pixel</li>
+          <li><code>b</code>: Pixel width (x-resolution)</li>
+          <li><code>c</code>: Row rotation (usually 0)</li>
+          <li><code>d</code>: Top-left y-coordinate of the upper-left pixel</li>
+          <li><code>e</code>: Column rotation (usually 0)</li>
+          <li><code>f</code>: Negative pixel height (y-resolution, negative for north-up)</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td><code>stac:tensor_shape</code></td>
+      <td>Array of integers</td>
+      <td><strong>CORE</strong>. The spatial dimensions of the sample.</td>
+    </tr>
+    <tr>
+      <td><code>stac:time_start</code></td>
+      <td>Integer</td>
+      <td><strong>CORE</strong>. Timestamp in seconds since UNIX epoch, representing the nominal start of acquisition.</td>
+    </tr>
+    <tr>
+      <td><code>stac:time_end</code></td>
+      <td>Integer</td>
+      <td><strong>CORE</strong>. Timestamp marking the end of the acquisition or composite period.</td>
+    </tr>
+    <tr>
+      <td><code>stac:centroid</code></td>
+      <td>String</td>
+      <td><strong>AUTOMATIC</strong>. Centroid of the sample in WKT <code>POINT</code> (EPSG:4326).</td>
+    </tr>
+  </tbody>
+</table>
+
+---
+
+#### RAI extension
+
+The RAI (Responsible AI) extension automatically enriches each `SAMPLE` with socioeconomic and environmental indicators by spatially overlaying its footprint with global datasets.
+
+<table>
+  <thead>
+    <tr>
+      <th><strong>Field</strong></th>
+      <th><strong>Type</strong></th>
+      <th><strong>Details</strong></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>rai:elevation</code></td>
+      <td>Long</td>
+      <td><strong>AUTOMATIC</strong>. Average elevation in meters within the Sample footprint (from <a href="https://doi.org/10.5069/G9028PQB">Copernicus DEM</a>).</td>
+    </tr>
+    <tr>
+      <td><code>rai:cisi</code></td>
+      <td>Float</td>
+      <td><strong>AUTOMATIC</strong>. Critical Infrastructure Spatial Index (0–1). See <a href="https://doi.org/10.1038/s41597-022-01218-4">doi:10.1038/s41597-022-01218-4</a>.</td>
+    </tr>
+    <tr>
+      <td><code>rai:gdp</code></td>
+      <td>Float</td>
+      <td><strong>AUTOMATIC</strong>. GDP (USD/year) averaged over footprint. See <a href="https://doi.org/10.1038/sdata.2018.4">doi:10.1038/sdata.2018.4</a>.</td>
+    </tr>
+    <tr>
+      <td><code>rai:hdi</code></td>
+      <td>Float</td>
+      <td><strong>AUTOMATIC</strong>. Human Development Index (0–1). See <a href="https://doi.org/10.1038/sdata.2018.4">doi:10.1038/sdata.2018.4</a>.</td>
+    </tr>
+    <tr>
+      <td><code>rai:gmi</code></td>
+      <td>Float</td>
+      <td><strong>AUTOMATIC</strong>. Global human modification index. See <a href="https://doi.org/10.5194/essd-12-1953-2020">doi:10.5194/essd-12-1953-2020</a>.</td>
+    </tr>
+    <tr>
+      <td><code>rai:pop</code></td>
+      <td>Float</td>
+      <td><strong>AUTOMATIC</strong>. Estimated population (LandScan). See <a href="https://doi.org/10.48690/1531770">doi:10.48690/1531770</a>.</td>
+    </tr>
+    <tr>
+      <td><code>rai:admin0</code></td>
+      <td>String</td>
+      <td><strong>AUTOMATIC</strong>. Country-level boundary. See <a href="https://doi.org/10.1371/journal.pone.0231866">doi:10.1371/journal.pone.0231866</a>.</td>
+    </tr>
+    <tr>
+      <td><code>rai:admin1</code></td>
+      <td>String</td>
+      <td><strong>AUTOMATIC</strong>. District-level boundary. Same source as above.</td>
+    </tr>
+    <tr>
+      <td><code>rai:admin2</code></td>
+      <td>String</td>
+      <td><strong>AUTOMATIC</strong>. Municipality-level boundary. Same source as above.</td>
+    </tr>
+  </tbody>
+</table>
+
+
+#### STATS extension
+
+The STATS extension provides descriptive statistics summarizing the pixel values of each `SAMPLE`. These statistics are computed automatically by the TACO API when the `file_format` is set to `Gtiff`, and they are calculated per band across the spatial dimensions (height × width) of the image. This extension defines four fields: `stats:mean`, `stats:min`, `stats:max`, and `stats:std`. Each field is represented as an array of scalars, with one value per channel. These statistics are essential for tasks such as input normalization, quality assessment, and characterization of value distributions across heterogeneous datasets. Importantly, when all samples in a TORTILLA archive include STATS metadata, the TACO API enables users to compute global or subset-level statistics through pooled variance and weighted averages, without requiring the entire dataset to be loaded into memory.
+
+#### STATS Fields
+
+| Field        | Type            | Description                                                                                |
+| ------------ | --------------- | ------------------------------------------------------------------------------------------ |
+| `stats:mean` | Array of Floats | The mean value of each band, computed across the height × width spatial dimensions.        |
+| `stats:min`  | Array of Floats | The minimum value of each band across the image.                                           |
+| `stats:max`  | Array of Floats | The maximum value of each band across the image.                                           |
+| `stats:std`  | Array of Floats | The standard deviation of each band, reflecting the variability across the spatial extent. |
+
 
 ### TACO level extension
 
