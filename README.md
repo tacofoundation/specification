@@ -28,6 +28,7 @@ To close these gaps, we propose TACO (Transparent Access to Cloud Optimized Data
 </p>
 </a>
 <sub><strong>Figure 1:</strong> Conceptual organization of the TACO Specification. The Data Model (A) is composed of two layers: Logical Structure (describing the relationships between data and metadata) and Semantic Description (standardised metadata definitions). These layers collectively define the Data Format (B), specifying how data is stored, which can be created and accessed through a dedicated API (C) consisting of the ToolBox (for creation) and the Reader (for reading).</sub>
+<br>
 
 ### The specification
 
@@ -43,7 +44,7 @@ The logical structure of the TACO data model is illustrated in the UML diagram i
 </p>
 </a>
 <sub><strong>Figure 2:</strong> TACO logical structure. A <code>SAMPLE</code> encapsulates raw data and metadata, with a pointer to a <code>DataSource</code>. Supported data sources include <code>GDALDataset</code>, <code>BYTES</code>, and <code>TORTILLA</code>. TACO extends <code>TORTILLA</code> by adding high-level dataset metadata.</sub>
-
+<br>
 
 A SAMPLE represents the minimal self-contained and smallest indivisible unit for AI training and evaluation. Each SAMPLE encapsulates the actual data and metadata ([**Figure 3**](#fig3)). Importantly, each SAMPLE contains a pointer to a DataSource that specifies how to access the underlying data. A SAMPLE supports three primary DataSource types: (i) GDALDataset, for raster or vector data readable by the GDAL library; (ii) BYTES, representing raw byte streams for unsupported or custom formats; and (iii) TORTILLA. While the BYTES option is available, GDALDataset is recommended for partial read support.
 
@@ -52,7 +53,7 @@ A SAMPLE represents the minimal self-contained and smallest indivisible unit for
   <img src="https://github.com/user-attachments/assets/52dad4b8-d680-4f43-b666-23572e48df2e" alt="Semantic description of SAMPLE metadata" width="80%">
 </p>
 <sub><strong>Figure 3:</strong> Semantic description of the <code>SAMPLE</code> metadata. The <code>Metadata</code> class contains essential file identification and storage fields. An abstract <code>Extension</code> class defines the interface for optional metadata, allowing for expansion. Specific extensions (marked with <code>&lt;&lt;Extension&gt;&gt;</code> in the header) like <code>STAC</code>, <code>RAI</code>, <code>STATS</code>, <code>Flood</code>, and <code>Methane</code> inherit from <code>Extension</code>, each adding domain-specific attributes. This design enables adding extensions without modifying the core <code>Metadata</code> structure.</sub>
-
+<br>
 
 The TORTILLA serves as a container that manages multiple SAMPLE instances. All SAMPLEs within a TORTILLA share a uniform metadata schema, enabling the combined metadata to be represented as a dataframe. Since TORTILLA implements the DataSource interface, it can be referenced within a SAMPLE, enabling recursive nesting of TORTILLA containers. This design supports the representation of hierarchical datasets while preserving the modularity and self-contained nature of individual SAMPLEs. Building upon TORTILLA, the TACO class extends this container structure by adding comprehensive dataset-level metadata ([**Figure 4**](#fig4)). This additional metadata provides a semantic collection overview, supporting dataset management, discovery, and interoperability.
 
@@ -61,7 +62,7 @@ The TORTILLA serves as a container that manages multiple SAMPLE instances. All S
   <img src="https://github.com/user-attachments/assets/e522fc11-7cc1-4670-a836-3491c1c2b1c2" alt="Semantic description of SAMPLE metadata" width="80%">
 </p>
 <sub><strong>Figure 4:</strong> Semantic description of the TACO dataset-level metadata. Core dataset information is structured in the Metadata class, linking mandatory and optional fields. Extensions, modeled through the abstract Extension class, allow modular inclusion of additional metadata such as RAI, Publications, and Sensor information, ensuring flexibility and scalability.</sub>
-
+<br>
 
 #### Semantic Description
 
@@ -223,6 +224,7 @@ The **TORTILLA** and **TACO** file formats are designed to efficiently store lar
   <img src="https://github.com/user-attachments/assets/47cf46be-6f40-4aec-bf97-9a674021bcfa" alt="Semantic description of SAMPLE metadata" width="80%">
 </p>
 <sub><strong>Figure 5:</strong> Structure of the TACO and TORTILLA file format, used as the underlying container for SAMPLEs. The format consists of a 200-byte static header followed by a dynamic segment. The static section encodes file-level metadata including a magic number (MB), footer offset (FO) and length (FL), data partition (DP), and pointers to the metadata collection (CO and CL, only for TACO). The dynamic section serializes data blobs (DATA), sample-level descriptors (FOOTER), and, in the case of TACO files only, a dataset-level metadata block (COLLECTION) encoded in UTF-8 JSON.</sub>
+<br>
 
 A **TACO** file extends the TORTILLA format by appending dataset-level metadata (the **COLLECTION**), encoded in JSON at the end of the file. This design ensures that both TORTILLA and TACO files are self-contained, portable, and complete, encapsulating all information required to interpret samples without reliance on external files or software dependencies.
 
@@ -236,6 +238,7 @@ The TACO API (Section [**API**](#api)) automatically generates certain fields b
   <img src="https://github.com/user-attachments/assets/ac910f8e-84d8-4b1a-bcbe-d46dba349692" width="80%">
 </p>
 <sub><strong>Figure 6:</strong> This diagram illustrates the key components of the TACO Toolbox API and their relationships. The Toolbox is responsible for creating, editing, and mapping between standards.</sub>
+<br>
 
 #### API
 
@@ -252,7 +255,7 @@ The Reader is designed to operate within a DataFrame interface in the target pro
   <img src="https://github.com/user-attachments/assets/ac910f8e-84d8-4b1a-bcbe-d46dba349692" width="80%">
 </p>
 <sub><strong>Figure 7:</strong> Overview of the TACO Reader API. This diagram illustrates the core components and their interactions. The Reader parses the FOOTER of TACO and TORTILLA objects and converts them into a DataFrame. Individual SAMPLEs can then be accessed using the read method, which enables sample-level querying and downstream analysis.</sub>
-
+<br>
 
 ## Extensions
 
