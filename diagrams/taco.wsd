@@ -1,0 +1,25 @@
+@startuml
+' === DataSource hierarchy ===
+interface DataSource
+
+class GDALDataset implements DataSource
+class BYTES implements DataSource
+class TORTILLA implements DataSource {
+  + samples: List<SAMPLE>
+}
+
+class TACO extends TORTILLA {
+  + metadata: Map<String, Object>
+}
+
+' === Core Sample class ===
+class SAMPLE {
+  + metadata: Map<String, Object>
+  + data: DataSource
+}
+
+' === Relationships ===
+SAMPLE --> DataSource : data
+TORTILLA "1" -- "1..*" SAMPLE : contains
+TACO      --|> TORTILLA : extends
+@enduml

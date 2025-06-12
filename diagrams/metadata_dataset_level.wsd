@@ -1,0 +1,126 @@
+@startuml
+skinparam nodesep 15
+skinparam ranksep 20
+left to right direction
+
+' === Abstract Metadata class ===
+abstract class Extension <<Extension>> {
+  {abstract} + applyExtension(): void
+}
+
+' === Core Dataset Metadata ===
+class Metadata {
+  -- Core --
+  + id: String
+  + taco_version: String
+  + dataset_version: String
+  + extent: Extent  
+  + description: String
+  + licenses: Licenses
+  + providers: List<Contact>
+  + data_curator: List<Contact>
+  -- Optional --
+  + title: String
+  + keywords: List<String>
+  + task: TaskType
+  + split_strategy: SplitStrategy
+  + raw_link: Hyperlink
+  + discuss_link: Hyperlink
+  + scientific: Publications
+  + sensors: List<Sensor>
+}
+
+' === Core Component Classes ===
+class Licenses {
+  + licenseList: List<License>
+}
+
+class License {
+  + name: String
+}
+
+class Contact {
+  + name: String
+  + organization: String
+  + emails: List<String>
+  + roles: List<String>
+}
+
+class Hyperlink {
+  + href: String
+  + description: String
+}
+
+class Extent {
+  + spatial: List<List<Float>>
+  + temporal: List<List<String>>
+}
+
+' === Extension Classes (EXPLICIT) ===
+class RAI <<Extension>> {
+  + data_collection: String
+  + data_collection_type: String
+  + data_collection_timeframe: String
+  + data_limitations: String  
+  + data_biases: String
+  + personal_sensitive_information: String
+  + use_cases: String
+  + data_preprocessing_protocol: String
+  + data_annotation_protocol: String
+  + annotation_platform: String
+  + data_release_maintenance_plan: String
+}
+
+class Publications <<Extension>> {
+  + summary: String
+  + doi: String
+  + publications: List<Publication>
+}
+
+class Publication {
+  + doi: String
+  + summary: String
+}
+
+class Sensor <<Extension>> {
+  + sensor: String
+  + bands: List<SpectralBand>
+}
+
+class SpectralBand {
+  + name: String
+  + index: Int
+  + common_name: String
+  + unit: String
+}
+
+' === Relationships ===
+Metadata "1" *-- "0..*" Extension : optional extensions
+
+
+Metadata "1" *-- "1" Licenses
+Metadata "1" *-- "*" Contact
+Metadata "1" *-- "0..1" Hyperlink : raw_link
+Metadata "1" *-- "0..1" Hyperlink : discuss_link
+Metadata "1" *-- "0..1" Extent
+
+Extension "1" *-- "0..1" RAI
+Extension "1" *-- "0..1" Publications
+Extension "1" *-- "0..1" Sensor
+
+Licenses "1" *-- "*" License
+Publications "1" *-- "*" Publication
+Sensor "1" *-- "*" SpectralBand
+
+' === Layout Adjustments ===
+Licenses -[hidden]-> Metadata
+Contact -[hidden]-> Metadata
+Extent -[hidden]-> Metadata
+Hyperlink -[hidden]-> Metadata
+
+RAI -[hidden]-> Extension
+Publications -[hidden]-> Extension
+Sensor -[hidden]-> Extension
+
+hide empty members
+@enduml

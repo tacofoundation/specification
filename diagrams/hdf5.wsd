@@ -1,0 +1,39 @@
+@startuml
+class Group {
+  + name: String
+}
+
+class Dataset {
+  + metadata: Map<String, Any>
+  + data: List <Chunk>
+}
+
+class Chunk {
+  + data: bytes
+}
+
+class Attribute {
+  + name: String
+  + value: String|Number|Array
+}
+
+enum DataType {
+  BOOL
+  INT8
+  INT16
+  INT32
+  INT64
+  UINT8
+  FLOAT32
+  FLOAT64
+}
+
+' === Relationships ===
+Group "1" *-- "0..*" Group : subgroups
+Group "1" *-- "0..*" Dataset : contains
+Group "1" *-- "0..*" Attribute : has
+
+Dataset "1" *-- "0..*" Attribute : has
+Dataset "1" *-- "1" DataType : uses
+Dataset "1" *-- "1..*" Chunk : composed of
+@enduml

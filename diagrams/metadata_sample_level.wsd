@@ -1,0 +1,83 @@
+@startuml
+skinparam nodesep 10
+skinparam ranksep 10
+left to right direction
+
+' === Core metadata class ===
+class Metadata {
+  -- Core --
+  + id: String
+  + file_format: DataSource
+  -- Optional --
+  + data_split: String
+  -- Automatic --
+  + offset: Long
+  + length: Long
+}
+
+enum DataSource {
+  GTiff
+  JPEG
+  BYTES
+  TORTILLA
+  (...other GDAL formats)
+}
+
+' === Abstract extension point ===
+abstract class Extension <<Extension>> {
+  {abstract} + applyExtension(): void
+}
+
+' === All extensions inherit from Extension ===
+' --- Group 1: Core metadata and statistics ---
+class STAC  <<Extension>> {
+  -- Core --
+  + crs: String
+  + geotransform: List<Float>
+  + tensor_shape: List<Long>
+  + time_start: Long
+  -- Optional --
+  + time_end: Long
+  -- Automatic --
+  + centroid: List<Float>
+}
+
+class STATS   <<Extension>> {
+  -- Automatic --
+  + mean: Float
+  + min: Float
+  + max: Float
+  + std: Float
+  + var: Float
+}
+
+class RAI   <<Extension>> {
+  -- Automatic --
+  + elevation: Long
+  + pop: Float
+  + gmi: Float
+  + cisi: Float
+  + gdp: Float
+  + hdi: Float
+  + admin0: String
+  + admin1: String
+  + admin2: String
+}
+
+' --- Group 2: Application-specific extensions ---
+class Flood           <<Extension>> 
+class Methane         <<Extension>> 
+
+' === Inheritance from the abstract Extension ===
+STATS  --|> Extension
+STAC   --|> Extension
+RAI    --|> Extension
+Flood  --|> Extension : not implemented yet
+Methane --|> Extension : not implemented yet
+
+' === Metadata-to-Extension relationship ===
+Metadata "1" *-- "0..*" Extension : optional extensions
+
+' === Extension-specific dependency ===
+RAI ..> STAC : requires
+@enduml

@@ -1,0 +1,41 @@
+@startuml
+class Group {
+  + name: String
+}
+
+class Dimension {
+  + name: String
+  + length: Int
+}
+
+class Variable {
+  + name: String
+  + shape: Dimension[*]
+  + dtype: DataType
+}
+
+class Attribute {
+  + name: String
+  + value: String|Number|Array
+}
+
+enum DataType {
+  byte
+  char
+  short
+  int
+  float
+  double
+  string
+}
+
+' === Relationships ===
+Group "1" -- "0.." Group : subgroups
+Group "1" -- "0.." Dimension : defines
+Group "1" -- "0.." Variable : contains
+Group "1" -- "0.." Attribute : has
+
+Variable "1" -- "0.." Attribute : has
+Variable "1" *-- "1" DataType : uses
+Variable "1" -- "1.." Dimension : dimensions
+@enduml

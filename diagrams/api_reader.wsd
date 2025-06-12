@@ -1,0 +1,53 @@
+@startuml
+
+' === Interfaces and Implementations ===
+interface DataSource {
+    +read(): Object
+}
+
+class GDALDataset implements DataSource {
+    +read(): String  ' returns GDAL VFS string
+}
+
+class BYTES implements DataSource {
+    +read(): byte[]  ' returns byte array
+}
+
+class TORTILLA implements DataSource {
+    +samples: List<Sample>
+    +read(): Object
+}
+
+class TACO extends TORTILLA {
+    +metadata: Map<String, Object>
+}
+
+' === Sample and DataFrame ===
+class Sample {
+    +data: DataSource
+    +metadata: Map<String, Object>
+}
+
+class DataFrame {
+    +read(id: String | Integer): Object
+}
+
+DataFrame --> Sample : read()
+Sample --> DataSource : data
+
+' === Reader ===
+class Reader {
+    +load(collection: bool): DataFrame
+    +compile()
+    +validate()
+}
+
+' === Relationships ===
+Reader --> TACO : load()
+Reader --> TORTILLA : load()
+Reader --> DataFrame
+
+TACO --> DataFrame : converted to
+TORTILLA --> DataFrame : converted to
+
+@enduml

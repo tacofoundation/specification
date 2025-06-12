@@ -1,0 +1,77 @@
+@startuml
+
+' === Layout Settings for Compact Square Shape ===
+skinparam nodesep 20
+skinparam ranksep 20
+skinparam shadowing false
+
+top to bottom direction
+
+' === Core data model ===
+class TORTILLA {
+    +samples: List<Sample>
+}
+
+class TACO {
+    +metadata: Map<String, Object>
+}
+
+class Sample {
+    +data: DataSource
+    +metadata: Map<String, Object>
+}
+
+' === Data transformation flow ===
+class GeoParquet
+class GeoParquetSTAC
+
+' === Metadata exports ===
+class STAC_Collection
+class Croissant
+class DataCite
+class DataCard
+
+' === Toolbox with methods ===
+class Toolbox {
+    +create()
+    +edit()
+    +tortilla2taco()
+    +taco2tortilla()
+    +footer2geoparquet()
+    +footer2geoparquetstac()
+    +collection2stac()
+    +collection2croissant()
+    +collection2datacite()
+    +collection2datacard()
+}
+
+' === Relationships ===
+TORTILLA "1" *-- "0..*" Sample : contains
+
+Toolbox --> TORTILLA : create()
+Toolbox --> TACO : create()
+Toolbox --> Sample : create()
+
+TORTILLA --> GeoParquet : footer2geoparquet()
+TORTILLA --> GeoParquetSTAC : footer2geoparquetstac()
+
+TACO --> STAC_Collection: collection2stac()
+TACO --> Croissant: collection2croissant()
+TACO --> DataCite: collection2datacite()
+TACO --> DataCard: collection2datacard()
+
+TACO --|> TORTILLA : extends
+
+' === Layout hints to group horizontally ===
+Toolbox -[hidden]- TORTILLA
+TORTILLA -[hidden]- TACO
+
+' Group related outputs horizontally
+GeoParquet -[hidden]- GeoParquetSTAC
+STAC_Collection -[hidden]- Croissant
+Croissant -[hidden]- DataCite
+DataCite -[hidden]- DataCard
+
+' Align Sample under TORTILLA
+TORTILLA -[hidden]- Sample
+@enduml

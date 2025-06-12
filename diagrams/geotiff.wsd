@@ -1,0 +1,31 @@
+@startuml
+' === GeoTIFF Conceptual Data Model ===
+
+class ImageDirectory {
+  + metadata: List <TIFFTag>
+}
+
+class RasterBand {
+  + data: bytes
+}
+
+class TIFFTag {
+  + tagID: Int
+  + value: String|Number|Array
+}
+
+class GeoKey {
+  + keyID: Int
+  + value: String|Number
+}
+
+class CRS {
+}
+
+' === Relationships ===
+ImageDirectory "1" -- "1.." RasterBand : contains
+ImageDirectory "1" -- "3.." TIFFTag : contains
+TIFFTag "1" .. "1..*" RasterBand : "provides\nmetadata\nfor"
+TIFFTag "1" -- "3.." GeoKey : "GeoKeyDirectoryTag\ncontains"
+GeoKey "3..*" --> "1" CRS : references
+@enduml
