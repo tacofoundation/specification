@@ -270,7 +270,7 @@ The Reader is designed to operate within a DataFrame interface in the target pro
 
 ## Extensions
 
-### SAMPLE level extension
+### Sample-level Semantic Description
 
 #### STAC extension
 
@@ -326,8 +326,6 @@ This section describes the integration of SpatioTemporal Asset Catalog (STAC) me
     </tr>
   </tbody>
 </table>
-
----
 
 #### RAI extension
 
@@ -390,7 +388,6 @@ The RAI (Responsible AI) extension automatically enriches each `SAMPLE` with soc
   </tbody>
 </table>
 
-
 #### STATS extension
 
 The STATS extension provides descriptive statistics summarizing the pixel values of each `SAMPLE`. These statistics are computed automatically by the TACO API when the `file_format` is set to `Gtiff`, and they are calculated per band across the spatial dimensions (height × width) of the image. This extension defines four fields: `stats:mean`, `stats:min`, `stats:max`, and `stats:std`. Each field is represented as an array of scalars, with one value per channel. These statistics are essential for tasks such as input normalization, quality assessment, and characterization of value distributions across heterogeneous datasets. Importantly, when all samples in a TORTILLA archive include STATS metadata, the TACO API enables users to compute global or subset-level statistics through pooled variance and weighted averages, without requiring the entire dataset to be loaded into memory.
@@ -405,7 +402,148 @@ The STATS extension provides descriptive statistics summarizing the pixel values
 | `stats:std`  | Array of Floats | The standard deviation of each band, reflecting the variability across the spatial extent. |
 
 
-### TACO level extension
+### TACO-level Semantic Description
+
+#### Extent Class
+
+Describes the spatial and temporal coverage of the entire dataset. Both spatial and temporal extents are required.
+
+| **Field**  | **Type**         | **Details**                                                              |
+| ---------- | ---------------- | ------------------------------------------------------------------------ |
+| `spatial`  | List of numbers  | Bounding box defined as `[xmin, ymin, xmax, ymax]` in EPSG:4326.         |
+| `temporal` | List of integers | Start and end dates in milliseconds since Unix Epoch (Jan 1, 1970, UTC). |
+
+#### Contact Class
+
+The **Contact class** is based on the [STAC Extension](https://github.com/stac-extensions/contacts) proposed by Matthias Mohr. It identifies and provides contact details for a person or organization responsible for a resource.
+
+| **Field**      | **Type**             | **Details**                                                                   |
+| -------------- | -------------------- | ----------------------------------------------------------------------------- |
+| `name`         | String               | Name of the responsible person (if `organization` is missing).                |
+| `organization` | String               | Affiliation of the contact (if `name` is missing).                            |
+| `emails`       | List of Info Objects | Optional email addresses.                                                     |
+| `roles`        | List of strings      | Optional roles (duties, functions, permissions) associated with this contact. |
+
+#### Hyperlink Object
+
+The Hyperlink class defines a URL and its associated description. The URL must follow [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986) standards.
+
+| **Field**     | **Type** | **Details**                                          |
+| ------------- | -------- | ---------------------------------------------------- |
+| `href`        | String   | URL of the resource. Must be a valid URI (RFC 3986). |
+| `description` | String   | Optional explanation or context for the hyperlink.   |
+
+#### Task Extension
+
+The `task` field must be a string selected from a well-defined and consistent list of supported ML tasks. It defines the primary ML task that the dataset supports.
+
+### Task Field
+
+| **Field** | **Type**         | **Details**                    |
+| --------- | ---------------- | ------------------------------ |
+| `task`    | String (Literal) | Type of machine learning task. |
+
+The task field must be one of the following values:
+
+* **Regression**: Estimates a numeric and continuous value.
+* **Classification**: Assigns predefined class labels to an output.
+* **Scene Classification**: Assigns a single class label to an entire scene or area.
+* **Object Detection**: Identifies and localizes objects using bounding boxes.
+* **Segmentation**: Labels individual pixels in an image.
+* **Semantic Segmentation**: Pixel-wise classification without object differentiation.
+* **Instance Segmentation**: Labels each distinct object at the pixel level.
+* **Panoptic Segmentation**: Merges semantic and instance segmentation.
+* **Similarity Search**: Checks if a query matches any reference item.
+* **Generative**: Produces synthetic data.
+* **Image Captioning**: Generates textual descriptions of images.
+* **Super Resolution**: Enhances image resolution and detail.
+* **Denoising**: Removes noise artifacts.
+* **Inpainting**: Reconstructs missing/corrupt regions.
+* **Colorization**: Adds color to grayscale images.
+* **Style Transfer**: Transfers style from one image to another.
+* **Deblurring**: Removes blur from an image.
+* **Dehazing**: Removes haze/fog to enhance clarity.
+* **General**: Use only if no specific task applies; clarify as needed.
+
+
+#### Split Strategy Extension
+
+The core `split_strategy` field is a string that **must** be chosen from a predefined list of supported splitting approaches. This field details how the dataset is partitioned into distinct subsets, typically for training, validation, and testing machine learning models.
+
+| **Field**        | **Type**         | **Details**                           |
+| ---------------- | ---------------- | ------------------------------------- |
+| `split_strategy` | String (Literal) | The method used to split the dataset. |
+
+**Supported `split_strategy` values:**
+
+* **random**: The dataset is split into training, validation, and testing subsets through a randomized process.
+* **stratified**: The dataset is split while preserving the distribution of a specific property, such as temporal periods (e.g., splitting by year or season) or spatial characteristics (e.g., by geographic location).
+* **other**: The dataset is split using a custom or non-standard method. Additional description is recommended.
+* **none**: The dataset is not explicitly divided into subsets.
+* **unknown**: The method used to split the dataset is not known or unspecified.
+
+#### Sensor Extension
+
+The Sensor extension provides information about the optical remote sensing data, including the sensor used and the spectral bands available. Users can specify the sensor name (e.g., `landsat8oli`, `sentinel2msi`) and optionally select a subset of bands (e.g., `landsat8oli[B01, B02]`). If recognized, the TACO API automatically populates the corresponding bands.
+
+| **Field** | **Type**             | **Details**                                                                                                                                                                                                                                                         |
+| --------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sensor`  | String               | The sensor that acquired the data (optional). **Supported sensors:** `landsat1mss`, `landsat2mss`, `landsat3mss`, `landsat4mss`, `landsat5mss`, `landsat4tm`, `landsat5tm`, `landsat7etm`, `landsat8oli`, `landsat9oli`, `sentinel2msi`, `eo1ali`, `aster`, `modis` |
+| `bands`   | List of SpectralBand | A list of spectral band objects. If not provided directly, it will be inferred from the `sensor` field if recognized.                                                                                                                                               |
+
+#### Spectral Band Extension
+
+The spectral band extension describes characteristics of individual bands associated with a given sensor.
+
+| **Field**             | **Type** | **Details**                                                                    |
+| --------------------- | -------- | ------------------------------------------------------------------------------ |
+| `name`                | String   | Unique name of the band (e.g., "B02", "red") (**required**)                    |
+| `index`               | Integer  | Index of the band                                                              |
+| `common_name`         | String   | Common name (e.g., "blue", "green") (optional)                                 |
+| `description`         | String   | Description of the band (optional)                                             |
+| `unit`                | String   | Unit of measurement (optional)                                                 |
+| `center_wavelength`   | Float    | Central wavelength of the band (optional)                                      |
+| `full_width_half_max` | Float    | Full width at half maximum (FWHM), a measure of spectral resolution (optional) |
+
+#### Label Extension
+
+The Label extension defines label data in a dataset. A `Label` object includes a list of `LabelClass` objects.
+
+| **Field**           | **Type**                   | **Details**                                                    |
+| ------------------- | -------------------------- | -------------------------------------------------------------- |
+| `label_classes`     | List of LabelClass Objects | A list where each element defines a label class (**required**) |
+| `label_description` | String                     | An optional description of the labels used                     |
+
+#### Label Class Extension
+
+Each `LabelClass` defines a specific category or class in the dataset.
+
+| **Field**     | **Type**          | **Details**                                                         |
+| ------------- | ----------------- | ------------------------------------------------------------------- |
+| `name`        | String            | Unique human-readable name (e.g., "car", "building") (**required**) |
+| `category`    | String or Integer | A broader category the label belongs to (**required**)              |
+| `description` | String            | Optional detailed description                                       |
+
+#### Scientific Extension
+
+This extension standardizes links to related scientific publications. The TACO scientific extension is based on the [STAC Scientific Extension](https://github.com/stac-extensions/scientific).
+
+| **Field**      | **Type**                    | **Details**                                                                              |
+| -------------- | --------------------------- | ---------------------------------------------------------------------------------------- |
+| `doi`          | String                      | Digital Object Identifier (DOI) of the dataset                                           |
+| `citation`     | String                      | Full BibTeX citation                                                                     |
+| `summary`      | String                      | Brief dataset summary                                                                    |
+| `publications` | List of Publication Objects | A list of related scientific works, conforming to the `Publication Object` specification |
+
+#### Publication Extension
+
+The `Publication` object contains metadata for a scientific publication related to the dataset.
+
+| **Field**  | **Type** | **Details**                                           |
+| ---------- | -------- | ----------------------------------------------------- |
+| `doi`      | String   | DOI of the publication (**required**)                 |
+| `citation` | String   | Full BibTeX citation (**required**)                   |
+| `summary`  | String   | Summary or abstract of the publication (**required**) |
 
 
 ### Facilitating dataset streaming with TOGs
