@@ -139,88 +139,24 @@ At the dataset level, TACO defines a `Metadata` class that encapsulates both cor
 Optional fields in the `Metadata` class include a dataset title, descriptive keywords, and high-level information about intended use, such as the task type and split strategy. Links to external resources can be provided via the optional `raw_link` and `discuss_link` fields, both represented by a `Hyperlink` class that includes an `href` and a textual `description`. TACO metadata is designed to be extensible: additional modules can be integrated by inheriting from an abstract `Extension` class. Check the [`TACO` Extensions section](#taco-level-extension) for more details.
 
 <p>&nbsp;</p>
-<table>
-  <thead>
-    <tr>
-      <th><strong>Field</strong></th>
-      <th><strong>Type</strong></th>
-      <th><strong>Details</strong></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><code>id</code></td>
-      <td>String</td>
-      <td><strong>CORE</strong>. A unique identifier for the dataset.</td>
-    </tr>
-    <tr>
-      <td><code>taco_version</code></td>
-      <td>String</td>
-      <td><strong>CORE</strong>. The version of the TACO specification.</td>
-    </tr>
-    <tr>
-      <td><code>dataset_version</code></td>
-      <td>String</td>
-      <td><strong>CORE</strong>. Version of the dataset.</td>
-    </tr>
-    <tr>
-      <td><code>description</code></td>
-      <td>String</td>
-      <td><strong>CORE</strong>. Description of the dataset.</td>
-    </tr>
-    <tr>
-      <td><code>licenses</code></td>
-      <td>List of strings</td>
-      <td><strong>CORE</strong>. License(s) of the dataset. It is recommended to use SPDX License identifiers.</td>
-    </tr>
-    <tr>
-      <td><code>extent</code></td>
-      <td>Extent Object</td>
-      <td><strong>CORE</strong>. Spatial and temporal extents.</td>
-    </tr>
-    <tr>
-      <td><code>providers</code></td>
-      <td>List of Person objects</td>
-      <td><strong>CORE</strong>. A list of persons who participated in the creation of the dataset.</td>
-    </tr>
-    <tr>
-      <td><code>curators</code></td>
-      <td>List of Person objects</td>
-      <td><strong>CORE</strong>. A list of persons responsible for converting the dataset to TACO compliance.</td>
-    </tr>
-    <tr>
-      <td><code>title</code></td>
-      <td>String</td>
-      <td><strong>OPTIONAL</strong>. Title of the dataset. Maximum length: 250 characters.</td>
-    </tr>
-    <tr>
-      <td><code>keywords</code></td>
-      <td>List of strings</td>
-      <td><strong>OPTIONAL</strong>. List of keywords describing the dataset.</td>
-    </tr>
-    <tr>
-      <td><code>task</code></td>
-      <td>Task Object</td>
-      <td><strong>OPTIONAL</strong>. Refers to the most relevant task defined by the TACO specification.</td>
-    </tr>
-    <tr>
-      <td><code>split_strategy</code></td>
-      <td>Split Strategy Object</td>
-      <td><strong>OPTIONAL</strong>. Chosen from an explicit list of method names.</td>
-    </tr>
-    <tr>
-      <td><code>discuss_link</code></td>
-      <td>HyperLink Object</td>
-      <td><strong>OPTIONAL</strong>. A link to a discussion forum or community page.</td>
-    </tr>
-    <tr>
-      <td><code>raw_link</code></td>
-      <td>HyperLink Object</td>
-      <td><strong>OPTIONAL</strong>. Link to the raw dataset (if not in native TACO format).</td>
-    </tr>
-  </tbody>
-</table>
-<p><strong>Table 2:</strong> Core fields in the TACO-level metadata schema.</p>
+
+| **Field**         | **Type**                                           | **Details**                                                                                                           |
+| ----------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `id`              | String                                             | **CORE**. A unique identifier for the dataset.                                                                        |
+| `taco_version`    | String                                             | **CORE**. The version of the TACO specification.                                                                      |
+| `dataset_version` | String                                             | **CORE**. Version of the dataset.                                                                                     |
+| `description`     | String                                             | **CORE**. Description of the dataset.                                                                                 |
+| `licenses`        | List of strings                                    | **CORE**. License(s) of the dataset. It is recommended to use [SPDX License identifiers](https://spdx.org/licenses/). |
+| `extent`          | [Extent Object](#extent-object)                    | **CORE**. Spatial and temporal extents.                                                                               |
+| `providers`       | List of [Person Objects](#person-object)           | **CORE**. A list of persons who participated in the creation of the dataset.                                          |
+| `curators`        | List of [Person Objects](#person-object)           | **CORE**. A list of persons responsible for converting the dataset to TACO compliance.                                |
+| `title`           | String                                             | **OPTIONAL**. Title of the dataset. Maximum length: 250 characters.                                                   |
+| `keywords`        | List of strings                                    | **OPTIONAL**. List of keywords describing the dataset.                                                                |
+| `task`            | [Task Object](#task-object)                        | **OPTIONAL**. Refers to the most relevant task defined by the TACO specification.                                     |
+| `split_strategy`  | [Split Strategy Object](#split-strategy-extension) | **OPTIONAL**. Chosen from an explicit list of method names.                                                           |
+| `discuss_link`    | [HyperLink Object](#hyperlink-object)              | **OPTIONAL**. A link to a discussion forum or community page.                                                         |
+| `raw_link`        | [HyperLink Object](#hyperlink-object)              | **OPTIONAL**. Link to the raw dataset (if not in native TACO format).                                                 |
+
 <p>&nbsp;</p>
 
 
