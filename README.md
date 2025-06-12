@@ -152,7 +152,7 @@ Optional fields in the `Metadata` class include a dataset title, descriptive key
 | `curators`        | List of [Person Objects](#person-object)           | **CORE**. A list of persons responsible for converting the dataset to TACO compliance.                                |
 | `title`           | String                                             | **OPTIONAL**. Title of the dataset. Maximum length: 250 characters.                                                   |
 | `keywords`        | List of strings                                    | **OPTIONAL**. List of keywords describing the dataset.                                                                |
-| `task`            | [Task Object](#task-object)                        | **OPTIONAL**. Refers to the most relevant task defined by the TACO specification.                                     |
+| `task`            | [Task Object](#task-extension)                        | **OPTIONAL**. Refers to the most relevant task defined by the TACO specification.                                     |
 | `split_strategy`  | [Split Strategy Object](#split-strategy-extension) | **OPTIONAL**. Chosen from an explicit list of method names.                                                           |
 | `discuss_link`    | [HyperLink Object](#hyperlink-object)              | **OPTIONAL**. A link to a discussion forum or community page.                                                         |
 | `raw_link`        | [HyperLink Object](#hyperlink-object)              | **OPTIONAL**. Link to the raw dataset (if not in native TACO format).                                                 |
