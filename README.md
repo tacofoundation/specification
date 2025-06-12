@@ -340,7 +340,7 @@ The STATS extension provides descriptive statistics summarizing the pixel values
 
 ### TACO-level Semantic Description
 
-#### Extent Class
+#### Extent object
 
 Describes the spatial and temporal coverage of the entire dataset. Both spatial and temporal extents are required.
 
