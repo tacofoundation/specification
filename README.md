@@ -332,10 +332,10 @@ The STATS extension provides descriptive statistics summarizing the pixel values
 
 | Field        | Type            | Description                                                                                |
 | ------------ | --------------- | ------------------------------------------------------------------------------------------ |
-| `stats:mean` | Array of Floats | The mean value of each band, computed across the height × width spatial dimensions.        |
-| `stats:min`  | Array of Floats | The minimum value of each band across the image.                                           |
-| `stats:max`  | Array of Floats | The maximum value of each band across the image.                                           |
-| `stats:std`  | Array of Floats | The standard deviation of each band, reflecting the variability across the spatial extent. |
+| `stats:mean` | Array of Floats | **AUTOMATIC**. The mean value of each band, computed across the height × width spatial dimensions.        |
+| `stats:min`  | Array of Floats | **AUTOMATIC**. The minimum value of each band across the image.                                           |
+| `stats:max`  | Array of Floats | **AUTOMATIC**. The maximum value of each band across the image.                                           |
+| `stats:std`  | Array of Floats | **AUTOMATIC**. The standard deviation of each band. |
 
 
 ### TACO-level Semantic Description
@@ -346,19 +346,19 @@ Describes the spatial and temporal coverage of the entire dataset. Both spatial 
 
 | **Field**  | **Type**         | **Details**                                                              |
 | ---------- | ---------------- | ------------------------------------------------------------------------ |
-| `spatial`  | List of numbers  | Bounding box defined as `[xmin, ymin, xmax, ymax]` in EPSG:4326.         |
-| `temporal` | List of integers | Start and end dates in milliseconds since Unix Epoch (Jan 1, 1970, UTC). |
+| `spatial`  | List of numbers  | **CORE**. Bounding box defined as `[xmin, ymin, xmax, ymax]` in EPSG:4326.         |
+| `temporal` | List of integers | **CORE**. Start and end dates in milliseconds since Unix Epoch (Jan 1, 1970, UTC). |
 
-#### Contact Class
+#### Person object
 
-The **Contact class** is based on the [STAC Extension](https://github.com/stac-extensions/contacts) proposed by Matthias Mohr. It identifies and provides contact details for a person or organization responsible for a resource.
+The **Person object** is based on the [STAC Extension](https://github.com/stac-extensions/contacts) proposed by Matthias Mohr. It identifies and provides contact details for a person or organization responsible for a resource.
 
 | **Field**      | **Type**             | **Details**                                                                   |
 | -------------- | -------------------- | ----------------------------------------------------------------------------- |
-| `name`         | String               | Name of the responsible person (if `organization` is missing).                |
-| `organization` | String               | Affiliation of the contact (if `name` is missing).                            |
-| `emails`       | List of Info Objects | Optional email addresses.                                                     |
-| `roles`        | List of strings      | Optional roles (duties, functions, permissions) associated with this contact. |
+| `name`         | String               | **CORE**. Name of the responsible person (if `organization` is missing).                |
+| `organization` | String               | **OPTIONAL**. Affiliation of the contact (if `name` is missing).                            |
+| `emails`       | List of Info Objects | **OPTIONAL**. Optional email addresses.                                                     |
+| `roles`        | List of strings      | **OPTIONAL**. Optional roles (duties, functions, permissions) associated with this contact. |
 
 #### Hyperlink Object
 
@@ -366,18 +366,16 @@ The Hyperlink class defines a URL and its associated description. The URL must f
 
 | **Field**     | **Type** | **Details**                                          |
 | ------------- | -------- | ---------------------------------------------------- |
-| `href`        | String   | URL of the resource. Must be a valid URI (RFC 3986). |
-| `description` | String   | Optional explanation or context for the hyperlink.   |
+| `href`        | String   | **CORE**. URL of the resource. Must be a valid URI (RFC 3986). |
+| `description` | String   | **OPTIONAL**. Optional explanation or context for the hyperlink.   |
 
 #### Task Extension
 
 The `task` field must be a string selected from a well-defined and consistent list of supported ML tasks. It defines the primary ML task that the dataset supports.
 
-### Task Field
-
 | **Field** | **Type**         | **Details**                    |
 | --------- | ---------------- | ------------------------------ |
-| `task`    | String (Literal) | Type of machine learning task. |
+| `task`    | String (Literal) | **CORE**. Type of machine learning task. |
 
 The task field must be one of the following values:
 
@@ -401,14 +399,13 @@ The task field must be one of the following values:
 * **Dehazing**: Removes haze/fog to enhance clarity.
 * **General**: Use only if no specific task applies; clarify as needed.
 
-
 #### Split Strategy Extension
 
 The core `split_strategy` field is a string that **must** be chosen from a predefined list of supported splitting approaches. This field details how the dataset is partitioned into distinct subsets, typically for training, validation, and testing machine learning models.
 
 | **Field**        | **Type**         | **Details**                           |
 | ---------------- | ---------------- | ------------------------------------- |
-| `split_strategy` | String (Literal) | The method used to split the dataset. |
+| `split_strategy` | String (Literal) | **CORE**. The method used to split the dataset. |
 
 **Supported `split_strategy` values:**
 
@@ -424,8 +421,9 @@ The Sensor extension provides information about the optical remote sensing data,
 
 | **Field** | **Type**             | **Details**                                                                                                                                                                                                                                                         |
 | --------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sensor`  | String               | The sensor that acquired the data (optional). **Supported sensors:** `landsat1mss`, `landsat2mss`, `landsat3mss`, `landsat4mss`, `landsat5mss`, `landsat4tm`, `landsat5tm`, `landsat7etm`, `landsat8oli`, `landsat9oli`, `sentinel2msi`, `eo1ali`, `aster`, `modis` |
-| `bands`   | List of SpectralBand | A list of spectral band objects. If not provided directly, it will be inferred from the `sensor` field if recognized.                                                                                                                                               |
+| `sensor`  | String               | **CORE**. The sensor that acquired the data (optional). **Supported sensors:** `landsat1mss`, `landsat2mss`, `landsat3mss`, `landsat4mss`, `landsat5mss`, `landsat4tm`, `landsat5tm`, `landsat7etm`, `landsat8oli`, `landsat9oli`, `sentinel2msi`, `eo1ali`, `aster`, `modis` |
+| `bands`   | List of [Spectral Band](#spectral-band-extension) objects | **OPTIONAL**. A list of spectral band objects. If not provided directly, it will be inferred from the `sensor` field if recognized.
+
 
 #### Spectral Band Extension
 
@@ -447,7 +445,7 @@ The Label extension defines label data in a dataset. A `Label` object includes a
 
 | **Field**           | **Type**                   | **Details**                                                    |
 | ------------------- | -------------------------- | -------------------------------------------------------------- |
-| `label_classes`     | List of LabelClass Objects | A list where each element defines a label class (**required**) |
+| `label_classes`     | List of [Label Class](#label-class-extension) Objects | A list where each element defines a label class (**required**) |
 | `label_description` | String                     | An optional description of the labels used                     |
 
 #### Label Class Extension
@@ -469,7 +467,7 @@ This extension standardizes links to related scientific publications. The TACO s
 | `doi`          | String                      | Digital Object Identifier (DOI) of the dataset                                           |
 | `citation`     | String                      | Full BibTeX citation                                                                     |
 | `summary`      | String                      | Brief dataset summary                                                                    |
-| `publications` | List of Publication Objects | A list of related scientific works, conforming to the `Publication Object` specification |
+| `publications` | List of [Publication](#publication-extension) Objects | A list of related scientific works, conforming to the `Publication Object` specification |
 
 #### Publication Extension
 
