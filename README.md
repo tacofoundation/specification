@@ -272,16 +272,9 @@ The Reader is designed to operate within a DataFrame interface in the target pro
 
 ### SAMPLE level extension
 
-Here is a **Markdown-compatible version** of your LaTeX document section, with HTML elements used where Markdown tables or formatting fall short (especially for wide and multiline content). This will render well on platforms like GitHub or Markdown-supported docs/blog engines.
-
----
-
-### SAMPLE level extension
-
 #### STAC extension
 
 This section describes the integration of SpatioTemporal Asset Catalog (STAC) metadata at the item level, where each `SAMPLE` corresponds to a STAC Item. STAC provides a standardized schema for spatially and temporally contextualizing assets. Although our schema does not adopt the exact naming conventions defined in official STAC, the current `SAMPLE` STAC extension allows for a direct mapping between the two specifications.
-
 
 <table>
   <thead>
