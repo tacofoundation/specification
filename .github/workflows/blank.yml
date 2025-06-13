@@ -1,0 +1,19 @@
+name: Notify website to sync specification
+
+on:
+  push:
+    paths:
+      - README.md
+    branches:
+      - main
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch event to tacofoundation.github.io
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.PAT_TACO }}
+          repository: tacofoundation/tacofoundation.github.io
+          event-type: sync-specification
