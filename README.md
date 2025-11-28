@@ -1,480 +1,667 @@
-# The TACO specification
-
-The terms "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document follow the definitions from [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt). The term "data user" refers to any individual or system accessing the data, "data provider" refers to the entity responsible for offering the data.
-
-## Version and schema
-
-**This is version 0.2.0 of the TACO specification**. The core data structures are defined through [UML diagrams](https://github.com/tacofoundation/specification/tree/main/diagrams) for easy inspection. To validate TACO-compliant files, use the [TACO Toolbox](https://github.com/tacofoundation/taco-toolbox), which is available in C++, Python, R, and Julia. **Future versions must remain backward-compatible with this one.**
-
-### Summary
-
-Geospatial communities have long relied on standardised formats for raster and vector data, enabling interoperability, stable tool development, and long-term data preservation. In contrast, Artificial Intelligence (AI)-ready datasets, particularly those derived from Earth Observation (EO), lack equivalent conventions. As a result, data producers often adopt ad hoc file structures, loosely defined formats, and inconsistent semantic encodings. This fragmentation hinders interoperability, complicates reuse, and undermines reproducibility. We argue that the lack of a standard format represents a structural bottleneck to scalable scientific progress, especially in the era of foundation models, where diverse datasets must be combined for effective training and performance evaluation in downstream tasks. To address this, we introduce TACO: a comprehensive specification that defines a formal data model, a cloud-optimized on-disk layout, and an API for creating and accessing AI-ready EO datasets.
-
-### Introduction
-
-The rapid increase in Earth Observation (EO) data, combined with advances in AI and cloud computing, has unlocked new opportunities for scientific discovery and operational monitoring (*Montillet et al., 2024*; *Eyring et al., 2024; *Hagos et al., 2022*). Modern applications range from methane superemitter detection (*Vaughan et al., 2024*) and burned area estimation (*Ribeiro et al., 2023*) to biodiversity tracking (*Yeh et al., 2021*) and global-scale weather forecasting (*Rasp et al., 2020; Bi et al., 2023*). These efforts increasingly rely on data-driven models, which require large volumes of curated, structured, and accessible EO data (*Reichstein et al., 2019*). However, preparing AI-ready EO datasets continues to be a significant challenge (*Sambasivan et al., 2021*; *Francis & Czerkawski, 2024*). Most datasets require extensive preprocessing and reformatting before being integrated into AI pipelines, and only a small fraction are usable `out of the box`. Although AI-ready EO datasets have grown substantially, with more than 500 now cataloged (*Schmitt et al., 2023*), they still lack a unified structure and consistent metadata conventions. This fragmentation hinders reproducibility, limits interoperability, and slows the development of AI (*Dimitrovski et al., 2023*; *Long et al., 2021*). These issues are especially critical for training foundation models, which rely on combining diverse sources (*Marsocci et al., 2024*).
-
-Insights from scientific communities can guide the development of standardised, AI-ready EO datasets. Fields such as climate science and geographic information systems (GIS) have long struggled with data standardisation and provide valuable lessons through widely adopted formats like NetCDF (_Treinish & Gough, 1987_; _Rew & Davis, 1990_) and GeoTIFF (_Ritter & Ruth, 1997_; _Devys et al., 2019_). NetCDF was initially created as a binary format for multi-dimensional scientific data, with applications in atmospheric and climate sciences, but not limited to it. With broader use in climate science, it became evident that the standard NetCDF specification required complementary conventions to adequately represent the metadata needs of the domain. This realization led to the development of several metadata conventions, most notably the CF (Climate and Forecast) Conventions (*Eaton et al., 2024*), aimed at standardising the description of scientific variables, coordinates, and attributes. Although these conventions significantly improved interoperability, their __`text-based definitions`__ introduced ambiguities and made consistent implementation difficult. To address this, formal data models, such as the CF data model (*Hassell et al., 2017*), were introduced years later, offering a structured and unambiguous interpretation of what CF-compliant data means. GeoTIFF, in contrast, took a more pragmatic approach. Designed to facilitate the exchange of raster data between GIS applications (*Ritter & Ruth, 1997*), GeoTIFF embeds minimal but critical metadata, specifically the coordinate reference system (CRS) and geotransform, directly within the file (*Devys et al., 2019*). GeoTIFF, unlike NetCDF, was not developed with a comprehensive semantic model in mind. However, its simplicity and user-friendly design have led to widespread adoption.
-
-In hindsight, both cases underscore the importance of maintainability. Crucially, both NetCDF and GeoTIFF have survived because active communities emerged around them, building tools and practices that reinforced and extended the specifications over time (*Devys et al., 2019*; *Maso et al., 2023*; *Eaton et al., 2024*). For CF-compliant NetCDF datasets, the experience highlighted the limitations of relying only on text-based definitions: as the authors of the CF data model argue in their conclusion, `creating an explicit data model before the CF conventions were written would arguably have been preferable. A data model encourages coherent implementations, which could be file storage syntaxes or software codes` (_Hassell et al., 2017_). In contrast, GeoTIFF illustrates how a well-defined minimal standard focused on a specific use case can achieve broad interoperability without necessitating a complex data model. These lessons highlight the need to balance formal rigor with practical simplicity. Given the inherent complexity of AI-ready EO datasets, we strongly support the development of a formal data model; however, whenever possible, it should be designed around the tools and workflows practitioners use on a daily basis to facilitate smooth adoption.
-
-The FAIR principles (*Wilkinson et al., 2016*), Findability, Accessibility, Interoperability, and Reusability, provide a useful framework to address the challenges faced by the AI-ready EO datasets. Regarding **Findability**, web standardised metadata schemas (i.e., Schema.org, _Guha et al. 2016_) are rarely used to describe AI-ready EO datasets, limiting their visibility in search engines and data catalogs (_Benjelloun et al., 2024_). In terms of **Accessibility**, data access often depends on manual downloads or custom APIs rather than scalable, cloud-native formats that support partial or selective retrieval. With respect to **Interoperability**, the wide variety of formats, with differing conventions for byte layout, chunking strategies, compression, and explicit metadata, creates barriers to seamless integration across datasets. Finally, on **Reusability**, many datasets lack clear licenses, provenance, or documentation, making them difficult to audit, cite, or extend.
-
-To close these gaps, we propose TACO (Transparent Access to Cloud Optimized Datasets), a FAIR-compliant, cloud-optimized specification for organizing AI-ready EO datasets. TACO files are self-contained, portable, and complete, encapsulating all the information required for sample interpretation without relying on external files or software dependencies. Built on widely supported technologies like GDAL and Apache Parquet, TACO allows for seamless integration across multiple programming languages.
-
-<p>&nbsp;</p>
-<a name="fig1">
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/17a84407-0cd1-4da4-9e0d-2e22beda7087" width="50%">
-</p>
-</a>
-<sub><strong>Figure 1:</strong> Conceptual organization of the TACO Specification. The Data Model (A) is composed of two layers: Logical Structure (describing the relationships between data and metadata) and Semantic Description (standardised metadata definitions). These layers collectively define the Data Format (B), specifying how data is stored, which can be created and accessed through a dedicated API (C) consisting of the ToolBox (for creation) and the Reader (for reading).</sub>
-<p>&nbsp;</p>
-
-### The specification
-
-The TACO specification defines the data model, file format, and API ([**Figure 1**](#fig1)). Here, the **_data model_** refers to an abstract representation of a dataset that defines the rules, constraints, and relationships connecting metadata to the associated data assets ([**Figure 2**](#fig2)). The **_data format_** defines the physical representation of the dataset, specifying how data and metadata are encoded, stored, and organized. Finally, the API specifies the programmatic methods and conventions by which users and applications can interact with TACO-compliant datasets. By providing a unique and well-structured interface, the API abstracts the underlying complexity of the data format and data model, allowing data users to query, modify, and even integrate multiple TACO datasets.
-
-#### The Data Model
-
-The logical structure of the TACO data model is illustrated in the UML diagram in [**Figure 2**](#fig2). At its core, a TACO dataset is defined as a structured collection of minimal self-contained data units, called SAMPLEs, organized within a container, called TORTILLA, and enriched by dataset-level metadata.
-
-<p>&nbsp;</p>
-<a name="fig2">
-<p align="center">
-<img src="https://github.com/user-attachments/assets/f41109aa-357f-4a2c-b348-e39192a9ccc6" alt="TACO logical structure" width="75%">
-</p>
-</a>
-<sub><strong>Figure 2:</strong> TACO logical structure. A <code>SAMPLE</code> encapsulates raw data and metadata, with a pointer to a <code>DataSource</code>. Supported data sources include <code>GDALDataset</code>, <code>BYTES</code>, and <code>TORTILLA</code>. TACO extends <code>TORTILLA</code> by adding high-level dataset metadata.</sub>
-<p>&nbsp;</p>
-
-
-A SAMPLE represents the minimal self-contained and smallest indivisible unit for AI training and evaluation. Each SAMPLE encapsulates the actual data and metadata ([**Figure 3**](#fig3)). Importantly, each SAMPLE contains a pointer to a DataSource that specifies how to access the underlying data. A SAMPLE supports three primary DataSource types: (i) GDALDataset, for raster or vector data readable by the GDAL library; (ii) BYTES, representing raw byte streams for unsupported or custom formats; and (iii) TORTILLA. While the BYTES option is available, GDALDataset is recommended for partial read support.
-
-<p>&nbsp;</p>
-<a name="fig3"></a>
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/52dad4b8-d680-4f43-b666-23572e48df2e" alt="Semantic description of SAMPLE metadata" width="80%">
-</p>
-<sub><strong>Figure 3:</strong> Semantic description of the <code>SAMPLE</code> metadata. The <code>Metadata</code> class contains essential file identification and storage fields. An abstract <code>Extension</code> class defines the interface for optional metadata, allowing for expansion. Specific extensions (marked with <code>&lt;&lt;Extension&gt;&gt;</code> in the header) like <code>STAC</code>, <code>RAI</code>, <code>STATS</code>, <code>Flood</code>, and <code>Methane</code> inherit from <code>Extension</code>, each adding domain-specific attributes. This design enables adding extensions without modifying the core <code>Metadata</code> structure.</sub>
-<p>&nbsp;</p>
-
-The TORTILLA serves as a container that manages multiple SAMPLE instances. All SAMPLEs within a TORTILLA share a uniform metadata schema, enabling the combined metadata to be represented as a dataframe. Since TORTILLA implements the DataSource interface, it can be referenced within a SAMPLE, enabling recursive nesting of TORTILLA containers. This design supports the representation of hierarchical datasets while preserving the modularity and self-contained nature of individual SAMPLEs. Building upon TORTILLA, the TACO class extends this container structure by adding comprehensive dataset-level metadata ([**Figure 4**](#fig4)). This additional metadata provides a semantic collection overview, supporting dataset management, discovery, and interoperability.
-
-<p>&nbsp;</p>
-<a name="fig4"></a>
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/e522fc11-7cc1-4670-a836-3491c1c2b1c2" alt="Semantic description of SAMPLE metadata" width="80%">
-</p>
-<sub><strong>Figure 4:</strong> Semantic description of the TACO dataset-level metadata. Core dataset information is structured in the Metadata class, linking mandatory and optional fields. Extensions, modeled through the abstract Extension class, allow modular inclusion of additional metadata such as RAI, Publications, and Sensor information, ensuring flexibility and scalability.</sub>
-<p>&nbsp;</p>
-
-#### Semantic Description
-
-This section defines the structure of the metadata associated with each individual SAMPLE ([**Figure 3**](#fig3)) and with the TACO dataset ([**Figure 4**](#fig4)) as a whole. Metadata is organized into three categories: (1) Core (required fields), (2) Optional (non-essential fields providing additional context or supporting specific functionalities), and (3) Automatic (fields automatically generated by the TACO API; generation is based exclusively on core metadata and never on optional fields).
-
-<p>&nbsp;</p>
-<a name="tab1"></a>
-<table>
-  <thead>
-    <tr>
-      <th><strong>Field</strong></th>
-      <th><strong>Type</strong></th>
-      <th><strong>Details</strong></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><code>tortilla:id</code></td>
-      <td>String</td>
-      <td><strong>CORE</strong>. Unique identifier for each item.</td>
-    </tr>
-    <tr>
-      <td><code>tortilla:file_format</code></td>
-      <td>String</td>
-      <td>
-        <strong>CORE</strong>. The format name <strong>MUST</strong> follow the GDAL naming convention. For example:
-        <ul>
-          <li>GeoTIFF files use the format name <code>GTiff</code>.</li>
-          <li>JPEG files use the format name <code>JPEG</code>.</li>
-        </ul>
-        <strong>Additional Supported Formats:</strong>
-        <ul>
-          <li><code>BYTES</code>: Used for data formats not supported by GDAL.</li>
-          <li><code>TORTILLA</code>: Used when the file represents a nested TORTILLA structure.</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td><code>tortilla:offset</code></td>
-      <td>Long</td>
-      <td><strong>AUTOMATIC</strong>. Byte offset where the item’s data begins in the file. This field is automatically generated by the <code>taco-toolbox</code>.</td>
-    </tr>
-    <tr>
-      <td><code>tortilla:length</code></td>
-      <td>Long</td>
-      <td><strong>AUTOMATIC</strong>. Number of bytes that the item’s data occupies. This field is automatically generated by the <code>taco-toolbox</code>.</td>
-    </tr>
-    <tr>
-      <td><code>tortilla:data_split</code></td>
-      <td>String</td>
-      <td>
-        <strong>OPTIONAL</strong>. The data split type. <strong>MUST</strong> be one of the following:
-        <ul>
-          <li><code>train</code>: Training data.</li>
-          <li><code>test</code>: Testing data.</li>
-          <li><code>validation</code>: Validation data.</li>
-        </ul>
-      </td>
-    </tr>
-  </tbody>
-</table>
-<p><strong>Table 1:</strong> Core Schema for <code>SAMPLE</code> Metadata</p>
-<p>&nbsp;</p>
-
-At the `SAMPLE` level, two core attributes are required: `tortilla:id`, a unique string that identifies each `SAMPLE`, and `tortilla:file_format`, which specifies the data format—either `TORTILLA`, `BYTES`, or any format supported by GDAL. An optional field, `tortilla:data_split`, indicates the dataset partition to which the sample belongs (e.g., training, validation, or testing). Additionally, the fields `tortilla:offset` (denoting the position within a TORTILLA archive) and `tortilla:length` (the sample's size) are automatically computed by the TACO API ([**Table 1**](#tab1)). The current specification supports three optional extensions: STAC, Responsible AI (RAI), and sample statistics (STATS), which are described in detail in the [`SAMPLE` Extensions section](#sample-level-extension).
-
-At the dataset level, TACO defines a `Metadata` class that encapsulates both core and optional fields describing the dataset’s provenance, structure, and content ([**Table 2**](#tab2)). Core fields include a persistent identifier (`id`), versioning information (`taco_version`, `dataset_version`), spatiotemporal coverage (`extent`), a human-readable description (`description`), licensing details (`licenses`), and contact information for both dataset providers (`providers`) and the individual responsible for converting the data into TACO (`data_curator`). Several of these core fields employ nested structures or lists to represent complex information. For example, both `providers` and `data_curator` are modeled as lists of `Contact` objects, each containing attributes such as name, affiliation, and email. The `extent` field uses nested list structures to capture spatial and temporal bounds, while the `licenses` field is represented by a `Licenses` class that can wrap one or more license entries.
-
-Optional fields in the `Metadata` class include a dataset title, descriptive keywords, and high-level information about intended use, such as the task type and split strategy. Links to external resources can be provided via the optional `raw_link` and `discuss_link` fields, both represented by a `Hyperlink` class that includes an `href` and a textual `description`. TACO metadata is designed to be extensible: additional modules can be integrated by inheriting from an abstract `Extension` class. Check the [`TACO` Extensions section](#taco-level-extension) for more details.
-
-<p>&nbsp;</p>
-
-| **Field**         | **Type**                                           | **Details**                                                                                                           |
-| ----------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `id`              | String                                             | **CORE**. A unique identifier for the dataset.                                                                        |
-| `taco_version`    | String                                             | **CORE**. The version of the TACO specification.                                                                      |
-| `dataset_version` | String                                             | **CORE**. Version of the dataset.                                                                                     |
-| `description`     | String                                             | **CORE**. Description of the dataset.                                                                                 |
-| `licenses`        | List of strings                                    | **CORE**. License(s) of the dataset. It is recommended to use [SPDX License identifiers](https://spdx.org/licenses/). |
-| `extent`          | [Extent Object](#extent-object)                    | **CORE**. Spatial and temporal extents.                                                                               |
-| `providers`       | List of [Person Objects](#person-object)           | **CORE**. A list of persons who participated in the creation of the dataset.                                          |
-| `curators`        | List of [Person Objects](#person-object)           | **CORE**. A list of persons responsible for converting the dataset to TACO compliance.                                |
-| `title`           | String                                             | **OPTIONAL**. Title of the dataset. Maximum length: 250 characters.                                                   |
-| `keywords`        | List of strings                                    | **OPTIONAL**. List of keywords describing the dataset.                                                                |
-| `task`            | [Task Object](#task-extension)                        | **OPTIONAL**. Refers to the most relevant task defined by the TACO specification.                                     |
-| `split_strategy`  | [Split Strategy Object](#split-strategy-extension) | **OPTIONAL**. Chosen from an explicit list of method names.                                                           |
-| `discuss_link`    | [HyperLink Object](#hyperlink-object)              | **OPTIONAL**. A link to a discussion forum or community page.                                                         |
-| `raw_link`        | [HyperLink Object](#hyperlink-object)              | **OPTIONAL**. Link to the raw dataset (if not in native TACO format).                                                 |
-
-<p>&nbsp;</p>
-
-
-#### Data format
-
-The **TORTILLA** and **TACO** file formats are designed to efficiently store large-scale datasets using a binary serialization scheme ([**Figure 5**](#fig5)). Each TORTILLA file enforces a consistent schema and metadata structure across all its samples. Metadata is stored in the **FOOTER** using Apache Parquet, while the corresponding sample data is stored as a Binary Large Object (**BLOB**). Each row in the Apache Parquet file corresponds to a distinct `SAMPLE` object. The **BLOB** and the **FOOTER** are combined into a single file, constituting the TORTILLA format (see [**Figure 5**](#fig5)). Notably, the format enables partial reads of the **BLOB** during sample-level access, while the **FOOTER** is read entirely only once at load time.
-
-<p>&nbsp;</p>
-<a name="fig5"></a>
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/47cf46be-6f40-4aec-bf97-9a674021bcfa" alt="Semantic description of SAMPLE metadata" width="80%">
-</p>
-<sub><strong>Figure 5:</strong> Structure of the TACO and TORTILLA file format, used as the underlying container for SAMPLEs. The format consists of a 200-byte static header followed by a dynamic segment. The static section encodes file-level metadata including a magic number (MB), footer offset (FO) and length (FL), data partition (DP), and pointers to the metadata collection (CO and CL, only for TACO). The dynamic section serializes data blobs (DATA), sample-level descriptors (FOOTER), and, in the case of TACO files only, a dataset-level metadata block (COLLECTION) encoded in UTF-8 JSON.</sub>
-<p>&nbsp;</p>
-
-A **TACO** file extends the TORTILLA format by appending dataset-level metadata (the **COLLECTION**), encoded in JSON at the end of the file. This design ensures that both TORTILLA and TACO files are self-contained, portable, and complete, encapsulating all information required to interpret samples without reliance on external files or software dependencies.
-
-Each file begins with a fixed 200-byte **HEADER** that includes a 2-byte magic number, an 8-byte offset and length for the **FOOTER**, and an 8-byte data partition count indicating the dataset's number of segments. This count allows the TACO API to verify dataset completeness and reconstruct the full archive correctly. TACO files introduce two additional 8-byte fields for the **COLLECTION** offset and length. Both formats reserve unused space in the header for future use: 174 bytes in TORTILLA and 158 bytes in TACO.
-
-The TACO API (Section [**API**](#api)) automatically generates certain fields based on the input data. For instance, it records sample-level offsets and lengths as columns in the **FOOTER**, enabling efficient random access to individual samples (illustrated by the red dotted line in [**Figure 5**](#fig5)). To support multi-language interoperability and partial reads, TACO relies on GDAL’s Virtual File System (VFS), particularly the `/vsisubfile/` handler, which allows byte ranges within a TACO file to be treated as standalone `GDALDataset` objects. This enables fast random access without reading the entire **BLOB** region. TACO also supports cloud-optimized access, leveraging additional GDAL VFS handlers such as `/vsicurl/`, `/vsis3/`, `/vsiaz/`, `/vsigs/`, `/vsioss/`, and `/vsiswift/`, ensuring high-performance reads across diverse cloud storage platforms.
-
-<p>&nbsp;</p>
-<a name="fig6"></a>
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/ac910f8e-84d8-4b1a-bcbe-d46dba349692" width="80%">
-</p>
-<sub><strong>Figure 6:</strong> This diagram illustrates the key components of the TACO Toolbox API and their relationships. The Toolbox is responsible for creating, editing, and mapping between standards.</sub>
-<p>&nbsp;</p>
-
-#### API
-
-The TACO API consists of two main components: the **Toolbox** ([**Figure 6**](#fig6)) and the **Reader** ([**Figure 7**](#fig7)). The Toolbox provides data classes for the core TACO models—`SAMPLE`, `TORTILLA`, and `TACO`—enabling users to define and modify dataset structures entirely through code. It includes a `create()` method that serializes both data and metadata into fully compliant TACO or TORTILLA files. Additionally, the `edit()` method allows users to update existing files, whether adjusting the `COLLECTION` or the `FOOTER`.
-
-Format conversion is supported through optional utilities such as `tortilla2taco()`, `taco2tortilla()`, `footer2geoparquet()`, and `footer2geoparquetstac()`. Exporters like `collection2stac()`, `collection2croissant()`, `collection2datacite()`, and `collection2datacard()` enable collection-level metadata generation in STAC, Croissant, DataCite, or Markdown formats.
-
-The **Reader** component provides a simple interface to load and interact with TACO and TORTILLA files. It implements a `load()` function that retrieves the `FOOTER` and, if called with `collection=True`, also returns the `COLLECTION`. A `compile()` function must also be provided to create smaller subsets of existing TACO or TORTILLA files.
-
-The Reader is designed to operate within a DataFrame interface in the target programming language (e.g., R, Python, or Julia), mapping the `FOOTER` to a DataFrame object. Additionally, a `read` method must be implemented on the DataFrame to expose GDAL VFS access (Figure\~\ref{fig\:api\_reader}). Optional helper functions can also be included to perform sanity checks and validate file compliance with the TACO format specification.
-
-<p>&nbsp;</p>
-<a name="fig7"></a>
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/ac910f8e-84d8-4b1a-bcbe-d46dba349692" width="80%">
-</p>
-<sub><strong>Figure 7:</strong> Overview of the TACO Reader API. This diagram illustrates the core components and their interactions. The Reader parses the FOOTER of TACO and TORTILLA objects and converts them into a DataFrame. Individual SAMPLEs can then be accessed using the read method, which enables sample-level querying and downstream analysis.</sub>
-<p>&nbsp;</p>
-
-## Extensions
-
-### Sample-level Semantic Description
-
-#### STAC extension
-
-This section describes the integration of SpatioTemporal Asset Catalog (STAC) metadata at the item level, where each `SAMPLE` corresponds to a STAC Item. STAC provides a standardized schema for spatially and temporally contextualizing assets. Although our schema does not adopt the exact naming conventions defined in official STAC, the current `SAMPLE` STAC extension allows for a direct mapping between the two specifications.
-
-<table>
-  <thead>
-    <tr>
-      <th><strong>Field</strong></th>
-      <th><strong>Type</strong></th>
-      <th><strong>Details</strong></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><code>stac:crs</code></td>
-      <td>String</td>
-      <td><strong>CORE</strong>. The Coordinate Reference System (CRS), specified using a recognized authority (EPSG, ESRI or SR-ORG).</td>
-    </tr>
-    <tr>
-      <td><code>stac:geotransform</code></td>
-      <td>Array of Floats</td>
-      <td><strong>CORE</strong>. A 6-element array defining the affine transformation from pixel to spatial coordinates, following GDAL conventions:  
-        <ul>
-          <li><code>a</code>: Top-left x-coordinate of the upper-left pixel</li>
-          <li><code>b</code>: Pixel width (x-resolution)</li>
-          <li><code>c</code>: Row rotation (usually 0)</li>
-          <li><code>d</code>: Top-left y-coordinate of the upper-left pixel</li>
-          <li><code>e</code>: Column rotation (usually 0)</li>
-          <li><code>f</code>: Negative pixel height (y-resolution, negative for north-up)</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td><code>stac:tensor_shape</code></td>
-      <td>Array of integers</td>
-      <td><strong>CORE</strong>. The spatial dimensions of the sample.</td>
-    </tr>
-    <tr>
-      <td><code>stac:time_start</code></td>
-      <td>Integer</td>
-      <td><strong>CORE</strong>. Timestamp in seconds since UNIX epoch, representing the nominal start of acquisition.</td>
-    </tr>
-    <tr>
-      <td><code>stac:time_end</code></td>
-      <td>Integer</td>
-      <td><strong>CORE</strong>. Timestamp marking the end of the acquisition or composite period.</td>
-    </tr>
-    <tr>
-      <td><code>stac:centroid</code></td>
-      <td>String</td>
-      <td><strong>AUTOMATIC</strong>. Centroid of the sample in WKT <code>POINT</code> (EPSG:4326).</td>
-    </tr>
-  </tbody>
-</table>
-
-#### RAI extension
-
-The RAI (Responsible AI) extension automatically enriches each `SAMPLE` with socioeconomic and environmental indicators by spatially overlaying its footprint with global datasets.
-
-<table>
-  <thead>
-    <tr>
-      <th><strong>Field</strong></th>
-      <th><strong>Type</strong></th>
-      <th><strong>Details</strong></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><code>rai:elevation</code></td>
-      <td>Long</td>
-      <td><strong>AUTOMATIC</strong>. Average elevation in meters within the Sample footprint (from <a href="https://doi.org/10.5069/G9028PQB">Copernicus DEM</a>).</td>
-    </tr>
-    <tr>
-      <td><code>rai:cisi</code></td>
-      <td>Float</td>
-      <td><strong>AUTOMATIC</strong>. Critical Infrastructure Spatial Index (0–1). See <a href="https://doi.org/10.1038/s41597-022-01218-4">doi:10.1038/s41597-022-01218-4</a>.</td>
-    </tr>
-    <tr>
-      <td><code>rai:gdp</code></td>
-      <td>Float</td>
-      <td><strong>AUTOMATIC</strong>. GDP (USD/year) averaged over footprint. See <a href="https://doi.org/10.1038/sdata.2018.4">doi:10.1038/sdata.2018.4</a>.</td>
-    </tr>
-    <tr>
-      <td><code>rai:hdi</code></td>
-      <td>Float</td>
-      <td><strong>AUTOMATIC</strong>. Human Development Index (0–1). See <a href="https://doi.org/10.1038/sdata.2018.4">doi:10.1038/sdata.2018.4</a>.</td>
-    </tr>
-    <tr>
-      <td><code>rai:gmi</code></td>
-      <td>Float</td>
-      <td><strong>AUTOMATIC</strong>. Global human modification index. See <a href="https://doi.org/10.5194/essd-12-1953-2020">doi:10.5194/essd-12-1953-2020</a>.</td>
-    </tr>
-    <tr>
-      <td><code>rai:pop</code></td>
-      <td>Float</td>
-      <td><strong>AUTOMATIC</strong>. Estimated population (LandScan). See <a href="https://doi.org/10.48690/1531770">doi:10.48690/1531770</a>.</td>
-    </tr>
-    <tr>
-      <td><code>rai:admin0</code></td>
-      <td>String</td>
-      <td><strong>AUTOMATIC</strong>. Country-level boundary. See <a href="https://doi.org/10.1371/journal.pone.0231866">doi:10.1371/journal.pone.0231866</a>.</td>
-    </tr>
-    <tr>
-      <td><code>rai:admin1</code></td>
-      <td>String</td>
-      <td><strong>AUTOMATIC</strong>. District-level boundary. Same source as above.</td>
-    </tr>
-    <tr>
-      <td><code>rai:admin2</code></td>
-      <td>String</td>
-      <td><strong>AUTOMATIC</strong>. Municipality-level boundary. Same source as above.</td>
-    </tr>
-  </tbody>
-</table>
-
-#### STATS extension
-
-The STATS extension provides descriptive statistics summarizing the pixel values of each `SAMPLE`. These statistics are computed automatically by the TACO API when the `file_format` is set to `Gtiff`, and they are calculated per band across the spatial dimensions (height × width) of the image. This extension defines four fields: `stats:mean`, `stats:min`, `stats:max`, and `stats:std`. Each field is represented as an array of scalars, with one value per channel. These statistics are essential for tasks such as input normalization, quality assessment, and characterization of value distributions across heterogeneous datasets. Importantly, when all samples in a TORTILLA archive include STATS metadata, the TACO API enables users to compute global or subset-level statistics through pooled variance and weighted averages, without requiring the entire dataset to be loaded into memory.
-
-#### STATS Fields
-
-| Field        | Type            | Description                                                                                |
-| ------------ | --------------- | ------------------------------------------------------------------------------------------ |
-| `stats:mean` | Array of Floats | **AUTOMATIC**. The mean value of each band, computed across the height × width spatial dimensions.        |
-| `stats:min`  | Array of Floats | **AUTOMATIC**. The minimum value of each band across the image.                                           |
-| `stats:max`  | Array of Floats | **AUTOMATIC**. The maximum value of each band across the image.                                           |
-| `stats:std`  | Array of Floats | **AUTOMATIC**. The standard deviation of each band. |
-
-
-### TACO-level Semantic Description
-
-#### Extent object
-
-Describes the spatial and temporal coverage of the entire dataset. Both spatial and temporal extents are required.
-
-| **Field**  | **Type**         | **Details**                                                              |
-| ---------- | ---------------- | ------------------------------------------------------------------------ |
-| `spatial`  | List of numbers  | **CORE**. Bounding box defined as `[xmin, ymin, xmax, ymax]` in EPSG:4326.         |
-| `temporal` | List of integers | **CORE**. Start and end dates in milliseconds since Unix Epoch (Jan 1, 1970, UTC). |
-
-#### Person object
-
-The **Person object** is based on the [STAC Extension](https://github.com/stac-extensions/contacts) proposed by Matthias Mohr. It identifies and provides contact details for a person or organization responsible for a resource.
-
-| **Field**      | **Type**             | **Details**                                                                   |
-| -------------- | -------------------- | ----------------------------------------------------------------------------- |
-| `name`         | String               | **CORE**. Name of the responsible person (if `organization` is missing).                |
-| `organization` | String               | **OPTIONAL**. Affiliation of the contact (if `name` is missing).                            |
-| `emails`       | List of Info Objects | **OPTIONAL**. Optional email addresses.                                                     |
-| `roles`        | List of strings      | **OPTIONAL**. Optional roles (duties, functions, permissions) associated with this contact. |
-
-#### Hyperlink Object
-
-The Hyperlink class defines a URL and its associated description. The URL must follow [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986) standards.
-
-| **Field**     | **Type** | **Details**                                          |
-| ------------- | -------- | ---------------------------------------------------- |
-| `href`        | String   | **CORE**. URL of the resource. Must be a valid URI (RFC 3986). |
-| `description` | String   | **OPTIONAL**. Optional explanation or context for the hyperlink.   |
-
-#### Task Extension
-
-The `task` field must be a string selected from a well-defined and consistent list of supported ML tasks. It defines the primary ML task that the dataset supports.
-
-| **Field** | **Type**         | **Details**                    |
-| --------- | ---------------- | ------------------------------ |
-| `task`    | String (Literal) | **CORE**. Type of machine learning task. |
-
-The task field must be one of the following values:
-
-* **Regression**: Estimates a numeric and continuous value.
-* **Classification**: Assigns predefined class labels to an output.
-* **Scene Classification**: Assigns a single class label to an entire scene or area.
-* **Object Detection**: Identifies and localizes objects using bounding boxes.
-* **Segmentation**: Labels individual pixels in an image.
-* **Semantic Segmentation**: Pixel-wise classification without object differentiation.
-* **Instance Segmentation**: Labels each distinct object at the pixel level.
-* **Panoptic Segmentation**: Merges semantic and instance segmentation.
-* **Similarity Search**: Checks if a query matches any reference item.
-* **Generative**: Produces synthetic data.
-* **Image Captioning**: Generates textual descriptions of images.
-* **Super Resolution**: Enhances image resolution and detail.
-* **Denoising**: Removes noise artifacts.
-* **Inpainting**: Reconstructs missing/corrupt regions.
-* **Colorization**: Adds color to grayscale images.
-* **Style Transfer**: Transfers style from one image to another.
-* **Deblurring**: Removes blur from an image.
-* **Dehazing**: Removes haze/fog to enhance clarity.
-* **General**: Use only if no specific task applies; clarify as needed.
-
-#### Split Strategy Extension
-
-The core `split_strategy` field is a string that **must** be chosen from a predefined list of supported splitting approaches. This field details how the dataset is partitioned into distinct subsets, typically for training, validation, and testing machine learning models.
-
-| **Field**        | **Type**         | **Details**                           |
-| ---------------- | ---------------- | ------------------------------------- |
-| `split_strategy` | String (Literal) | **CORE**. The method used to split the dataset. |
-
-**Supported `split_strategy` values:**
-
-* **random**: The dataset is split into training, validation, and testing subsets through a randomized process.
-* **stratified**: The dataset is split while preserving the distribution of a specific property, such as temporal periods (e.g., splitting by year or season) or spatial characteristics (e.g., by geographic location).
-* **other**: The dataset is split using a custom or non-standard method. Additional description is recommended.
-* **none**: The dataset is not explicitly divided into subsets.
-* **unknown**: The method used to split the dataset is not known or unspecified.
-
-#### Sensor Extension
-
-The Sensor extension provides information about the optical remote sensing data, including the sensor used and the spectral bands available. Users can specify the sensor name (e.g., `landsat8oli`, `sentinel2msi`) and optionally select a subset of bands (e.g., `landsat8oli[B01, B02]`). If recognized, the TACO API automatically populates the corresponding bands.
-
-| **Field** | **Type**             | **Details**                                                                                                                                                                                                                                                         |
-| --------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sensor`  | String               | **CORE**. The sensor that acquired the data (optional). **Supported sensors:** `landsat1mss`, `landsat2mss`, `landsat3mss`, `landsat4mss`, `landsat5mss`, `landsat4tm`, `landsat5tm`, `landsat7etm`, `landsat8oli`, `landsat9oli`, `sentinel2msi`, `eo1ali`, `aster`, `modis` |
-| `bands`   | List of [Spectral Band](#spectral-band-extension) objects | **OPTIONAL**. A list of spectral band objects. If not provided directly, it will be inferred from the `sensor` field if recognized.
-
-
-#### Spectral Band Extension
-
-The spectral band extension describes characteristics of individual bands associated with a given sensor.
-
-| **Field**             | **Type** | **Details**                                                                    |
-| --------------------- | -------- | ------------------------------------------------------------------------------ |
-| `name`                | String   | Unique name of the band (e.g., "B02", "red") (**required**)                    |
-| `index`               | Integer  | Index of the band                                                              |
-| `common_name`         | String   | Common name (e.g., "blue", "green") (optional)                                 |
-| `description`         | String   | Description of the band (optional)                                             |
-| `unit`                | String   | Unit of measurement (optional)                                                 |
-| `center_wavelength`   | Float    | Central wavelength of the band (optional)                                      |
-| `full_width_half_max` | Float    | Full width at half maximum (FWHM), a measure of spectral resolution (optional) |
-
-#### Label Extension
-
-The Label extension defines label data in a dataset. A `Label` object includes a list of `LabelClass` objects.
-
-| **Field**           | **Type**                   | **Details**                                                    |
-| ------------------- | -------------------------- | -------------------------------------------------------------- |
-| `label_classes`     | List of [Label Class](#label-class-extension) Objects | A list where each element defines a label class (**required**) |
-| `label_description` | String                     | An optional description of the labels used                     |
-
-#### Label Class Extension
-
-Each `LabelClass` defines a specific category or class in the dataset.
-
-| **Field**     | **Type**          | **Details**                                                         |
-| ------------- | ----------------- | ------------------------------------------------------------------- |
-| `name`        | String            | Unique human-readable name (e.g., "car", "building") (**required**) |
-| `category`    | String or Integer | A broader category the label belongs to (**required**)              |
-| `description` | String            | Optional detailed description                                       |
-
-#### Scientific Extension
-
-This extension standardizes links to related scientific publications. The TACO scientific extension is based on the [STAC Scientific Extension](https://github.com/stac-extensions/scientific).
-
-| **Field**      | **Type**                    | **Details**                                                                              |
-| -------------- | --------------------------- | ---------------------------------------------------------------------------------------- |
-| `doi`          | String                      | Digital Object Identifier (DOI) of the dataset                                           |
-| `citation`     | String                      | Full BibTeX citation                                                                     |
-| `summary`      | String                      | Brief dataset summary                                                                    |
-| `publications` | List of [Publication](#publication-extension) Objects | A list of related scientific works, conforming to the `Publication Object` specification |
-
-#### Publication Extension
-
-The `Publication` object contains metadata for a scientific publication related to the dataset.
-
-| **Field**  | **Type** | **Details**                                           |
-| ---------- | -------- | ----------------------------------------------------- |
-| `doi`      | String   | DOI of the publication (**required**)                 |
-| `citation` | String   | Full BibTeX citation (**required**)                   |
-| `summary`  | String   | Summary or abstract of the publication (**required**) |
+# The TACO specification 
+
+## 1. Version and schema
+
+This is version 2.0.0 of the TACO specification, released on November 21, 2025. See [Version Compatibility](#9.-Version-Compatibility) for details on compatibility with previous versions. The specification follows semantic versioning (MAJOR.MINOR.PATCH). Within the same major version, all updates **MUST** maintain backward compatibility.
+
+## 2. Overview
+
+The TACO (Transparent Access to Cloud-Optimized datasets) specification defines a comprehensive standard for organizing, storing, and accessing AI-ready Earth Observation (EO) datasets. TACO addresses the fragmentation in current EO dataset practices by providing:
+
+1. A formal data model that defines the logical structure and relationships of hierarchical geospatial datasets.
+
+2. A physical storage format optimized for cloud-native access with efficient metadata organization.
+
+3. A standardized API for creating and reading TACO-compliant datasets across multiple programming languages.
+
+TACO is built on widely-adopted open technologies (GDAL, Apache Parquet) to ensure broad compatibility and long-term maintainability. The specification is designed to support the full lifecycle of AI-ready EO datasets: from creation and distribution to efficient querying and streaming in cloud environments.
+
+## 3. Design Goals
+
+The TACO specification is guided by the following design principles:
+
+1. Self-contained and portable: TACO files encapsulate all data and metadata required for interpretation without external dependencies. A TACO dataset can be copied, moved, or archived as a single unit.
+
+2. Cloud-optimized: The format supports partial reads and efficient byte-range access, enabling streaming workflows without downloading entire datasets. Metadata is organized to minimize HTTP requests in cloud storage scenarios.
+
+3. Hierarchical by design: TACO natively supports nested dataset structures through the Position-Invariant Tree (PIT) constraint, enabling efficient SQL queries over multi-level hierarchies.
+
+4. FAIR-compliant: TACO implements the FAIR principles (Findability, Accessibility, Interoperability, Reusability) through standardized metadata, persistent identifiers, clear licensing, and format interoperability.
+
+5. Language-agnostic: By relying on GDAL Virtual File System (VFS) and Apache Parquet, TACO can be implemented in any language with GDAL bindings (Python, R, Julia, C++, etc.).
+
+6. Extensible: The specification defines core metadata fields while allowing domain-specific extensions through a formal extension mechanism.
+
+## 4. Architecture Overview
+
+The TACO specification is structured around three distinct but interconnected layers, each serving a specific purpose in the complete system design (Figure 1):
+
+- Data Model Layer (Logical): Defines the abstract structure, relationships, and constraints that govern how datasets are organized. This layer specifies what constitutes a valid TACO dataset independently of how it is physically stored.
+
+- Physical Layer (Storage): Defines the concrete serialization format, including byte layout, metadata encoding, and file organization. This layer implements the logical model using established technologies (Apache Parquet, GDAL-compatible formats).
+
+- API Layer (Programmatic Access): Provides standardized methods for creating, validating, reading, and querying TACO datasets. This layer abstracts the complexity of the physical format, offering a consistent interface across programming languages.
+
+This separation of concerns enables independent evolution of each layer while maintaining compatibility. For example, the physical layer can adopt new compression algorithms without affecting the data model, and multiple API implementations can coexist (Python, R, Julia, Matlab) as long as they provide the same core methods and functionalities, ensuring that users can switch between languages seamlessly.
+
+![TACO Architecture](/image/taco_three_layers.png)
+*Figure 1: TACO Three-Layer Architecture. The specification separates logical structure (Data Model), concrete serialization (Physical), and programmatic access (API).*
+
+## 5. Data Model Layer
+
+### 5.1. Core Concepts
+
+The TACO data model defines three fundamental abstractions that structure how datasets are organized: SAMPLE, TORTILLA, and TACO. These concepts form a nested hierarchy where each level serves a distinct purpose in representing AI-ready geospatial datasets.
+
+### 5.2. SAMPLE
+
+A SAMPLE represents the minimal self-contained and smallest indivisible unit. Each SAMPLE encapsulates both data and metadata, providing everything needed to interpret a single instance without external dependencies. Each SAMPLE maintains pointers to both its data and metadata. The metadata itself also contains fields that point to the data, enabling direct access to the underlying files. SAMPLEs are classified into two types based on their content:
+
+**FILE**: The SAMPLE points to a single data file (e.g., GeoTIFF, JPEG, NetCDF, PDF).
+
+**FOLDER**: The SAMPLE points to a TORTILLA container, enabling hierarchical structures.
+
+### 5.3. TORTILLA
+
+A TORTILLA is a collection of SAMPLEs. All SAMPLEs within a TORTILLA **MUST** have the same metadata schema with consistent types, ensuring that the combined metadata can be represented as a tabular dataframe. 
+
+Because a SAMPLE can point to another TORTILLA (FOLDER type), hierarchical dataset structures can be created through recursive nesting. For example, a parent TORTILLA contains SAMPLEs of spatial tiles (FOLDER type), where each spatial tile is itself a TORTILLA containing temporal sequences (FOLDER type), and each temporal sequence is a TORTILLA containing multi-band images (FILE type). This hierarchical organization enables efficient representation of complex geospatial datasets with multiple levels of grouping while maintaining a simple and consistent data model.
+
+### 5.4. TACO
+
+TACO extends TORTILLA by adding comprehensive dataset-level metadata in a structure called COLLECTION. This metadata provides semantic information about the dataset as a whole, such as identification, provenance, licensing, spatiotemporal coverage, and intended use. A TACO dataset **MUST** have exactly one root TORTILLA that contains all SAMPLEs.
+
+![TACO Architecture](/image/datamodel.png)
+
+*Figure 2: TACO Core Data Model. A SAMPLE is the minimal unit, classified as a FILE (pointing to data files) or a FOLDER (pointing to TORTILLAs). TORTILLA is a collection of SAMPLEs with a uniform metadata schema. TACO extends TORTILLA by adding dataset-level COLLECTION metadata.*
+
+### 5.5. Hierarchical Organization
+
+The PIT is a structural constraint that enables efficient navigation and querying of hierarchical TACO datasets. PIT enforces a regular tree structure where the position of any node uniquely determines its path from the root, eliminating the need for explicit parent-child relationship tracking.
+
+For a dataset to be PIT-compliant, the following rules **MUST** be enforced:
+
+**PIT-1: Structural Isomorphism at Level 0**  
+
+All SAMPLEs at the root level (level 0) **MUST** be structurally isomorphic. Two SAMPLEs are considered isomorphic when they satisfy ALL of the following conditions:
+
+- They **MUST** contain the same number of children
+- Children at the same position **MUST** have identical identifiers (id field)
+- Children at the same position **MUST** have the same type (FILE or FOLDER)
+
+**PIT-2: Schema Uniformity Across Levels**  
+
+All SAMPLEs at the same hierarchy level **MUST** share an identical metadata schema, including:
+
+- All core metadata fields with matching data types
+- All extension fields with matching data types
+- Identical field ordering (optional but recommended)
+
+![PIT Constraint](/image/PIT.png)
+*Figure 3: Valid PIT (left) has uniform structure: all FOLDERs contain 2 FILEs. Invalid PIT (right) has different child counts: FOLDER_0 has 2 FILEs, FOLDER_1 has 3 FILEs.*
+
+**Padding for irregular structures**: When datasets have missing observations, placeholder SAMPLEs with identifiers `__TACOPAD__N` are inserted to maintain PIT compliance.
+
+### 5.6. Metadata Schema
+
+The TACO data model defines metadata at two levels: SAMPLE-level metadata describing individual units, and TACO-level metadata (COLLECTION) describing the dataset as a whole.
+
+#### 5.5.1. SAMPLE-level Fields
+
+**Core fields (REQUIRED):**
+
+- `id` (String): Unique identifier for the SAMPLE. **MUST** NOT contain slashes (`/`, `\`) or colons (`:`). **MUST** NOT start with double underscore (`__`), which is reserved for padding.
+- `type` (String): SAMPLE type. **MUST** be either `FILE` or `FOLDER`.
+- `path` (String | Null): Location of the data. For FILE SAMPLEs, it contains the file path. For FOLDER SAMPLEs, contains a pointer to a TORTILLA.
+
+**Extension fields:**
+
+SAMPLEs can be extended with domain-specific metadata through the extension mechanism. Extensions add additional fields using namespace prefixes (e.g., `stac:*` or `stats:*`). All SAMPLEs within a TORTILLA **MUST** have identical metadata schemas, including all extension fields.
+
+TORTILLA provides an efficient mechanism for computing extension metadata over sets of SAMPLEs. When metadata computation benefits from accessing the entire dataset (e.g., statistical aggregations, spatial indexing, batch processing), TORTILLA extensions compute fields across all contained SAMPLEs simultaneously rather than individually.
+
+#### 5.5.2. TACO-level Fields (COLLECTION)
+
+**Core fields (REQUIRED):**
+
+- `id` (String): Unique persistent identifier for the dataset. **MUST** be lowercase alphanumeric with underscores and hyphens allowed.
+- `taco_version` (String): TACO specification version (e.g., "2.0.0").
+- `dataset_version` (String): Version of the dataset itself.
+- `description` (String): Human-readable description of the dataset.
+- `licenses` (List[String]): Dataset license(s). SPDX identifiers are RECOMMENDED.
+- `providers` (List[Object]): Persons or organizations who created the dataset. Each object contains `name`, `organization`, `email`, and `role` fields.
+- `tasks` (List[String]): Machine learning tasks the dataset supports (e.g., `["semantic-segmentation"]`, `["classification"]`).
+
+**Optional fields:**
+
+- `title` (String): Short title for the dataset (max 250 characters).
+- `curators` (List[Object]): Persons responsible for converting the dataset to TACO format. Same structure as `providers`.
+- `keywords` (List[String]): Descriptive keywords for searchability.
+- `extent` (Object): Spatial and temporal coverage. Contains `spatial` (bounding box `[min_lon, min_lat, max_lon, max_lat]` in WGS84) and `temporal` (ISO 8601 datetime strings `[start, end]`). This field can be auto-calculated from SAMPLE-level metadata if the user defines the STAC extension.
+
+**Extension fields:**
+
+TACO-level extensions add dataset-wide metadata using the same namespace convention as SAMPLE-level extensions.
+
+![PIT Constraint](/image/metadata_schema.png)
+*Figure 4: TACO Metadata Schema Overview. SAMPLE metadata consists of core fields (id, type, path) and extension fields using namespace prefixes. TORTILLA provides efficient computation of extensions over collections of SAMPLEs. TACO metadata (COLLECTION) includes core fields for dataset identification, optional fields for additional context, and extension fields for domain-specific metadata. All levels use the same namespace-based extension mechanism.*
+
+## 6. Physical Layer
+
+### 6.1. Directory Structure
+
+TACO datasets follow a standardized directory structure consisting of three main components:
+
+**DATA/**: Contains the hierarchical organization of data files and folders. Each SAMPLE of type FILE is stored as a physical file, while each SAMPLE of type FOLDER is represented as a subdirectory containing its own set of SAMPLEs. This structure mirrors the logical hierarchy defined in the data model.
+
+**METADATA/**: Contains consolidated metadata for efficient querying across the entire dataset. Metadata is organized into separate files per hierarchy level: `level0.parquet`, `level1.parquet`, etc. Each file contains the complete metadata for all SAMPLEs at that specific depth in the hierarchy.
+
+**COLLECTION.json**: This file contains the dataset-level metadata as a UTF-8 encoded JSON document. It includes all core and optional fields defined in the TACO metadata schema, as well as any TACO-level extensions.
+
+**Example 1 - Flat structure (single level):**
+
+```
+dataset/
+├── DATA/
+│   ├── image_001.tif
+│   ├── image_002.tif
+│   └── image_003.tif
+├── METADATA/
+│   └── level0.parquet
+└── COLLECTION.json
+```
+
+**Example 2 - Three-level hierarchy (scenes -> components -> files):**
+
+```
+dataset/
+├── DATA/
+│   ├── scene_001/
+│   │   ├── __meta__
+│   │   ├── label.json
+│   │   └── imagery/
+│   │       ├── __meta__
+│   │       ├── before.tif
+│   │       └── after.tif
+│   ├── scene_002/
+│   │   ├── __meta__
+│   │   ├── label.json
+│   │   └── imagery/
+│   │       ├── __meta__
+│   │       ├── before.tif
+│   │       └── after.tif
+├── METADATA/
+│   ├── level0.parquet
+│   ├── level1.parquet
+│   └── level2.parquet
+└── COLLECTION.json
+```
+
+**Invalid structure (PIT violation - mixed types at same level):**
+
+```
+dataset/
+├── DATA/
+│   ├── tile_001/          <- FOLDER
+│   │   └── __meta__
+│   │   └── file_a
+│   ├── tile_002/          <- FOLDER
+│   │   └── __meta__
+│   │   └── file_a
+│   └── tile_003      <- FILE (BREAKS PIT!)
+├── METADATA/
+│   └── level0.parquet
+└── COLLECTION.json
+```
+
+This violates PIT because level 0 contains both FOLDER SAMPLEs (tile_001, tile_002) and FILE SAMPLE (tile_003). All SAMPLEs at the same level **MUST** have the same type; this structure is invalid.
+
+### 6.2. Dual Metadata System
+
+TACO implements a dual metadata strategy to optimize for different access patterns:
+
+**Consolidated Metadata (METADATA/levelX.parquet)**
+
+*Consolidated metadata* enables efficient SQL queries across the entire dataset without traversing the directory hierarchy. Each file **MUST** contain all SAMPLE metadata at its corresponding hierarchy level, including core fields (id, type, path), extension fields, and the automatically generated `internal:parent_id` field that links each SAMPLE to its parent's index in the previous level.
+
+*Consolidated metadata* is lazy-loaded at dataset initialization for query planning and execution. This organization enables operations like filtering by spatiotemporal extent, aggregating statistics, or selecting specific SAMPLEs based on arbitrary predicates.
+
+**Local Metadata (DATA/folder/__meta__.parquet)**
+
+*Local metadata* enables fast navigation within a specific folder without loading the entire dataset's metadata. Each `__meta__` parquet file **MUST** contain metadata only for the direct children of that specific folder, representing a complete metadata snapshot for one TORTILLA container. In practical terms, a TORTILLA always maps to a directory that **MUST** contain a `__meta__` file with its children's metadata.
+
+*Local metadata* is read on demand when navigating into a specific folder or querying a subset of the hierarchy. This organization enables efficient local operations without the overhead of loading global metadata, supporting workflows that process individual folders or subtrees independently.
+
+The dual system allows TACO readers to choose the optimal metadata source based on the query: consolidated metadata for global operations, local metadata for hierarchical navigation.
+
+### 6.3. ZIP Format
+
+TACO implements a cloud-optimized version of the ZIP format. The standard ZIP format requires scanning the Central Directory located at the end of the file to access internal files. TACO ZIP solves this by including a TACO_HEADER at byte position 0 that contains direct offsets to all metadata files and `COLLECTION.json`, enabling immediate access without Central Directory traversal.
+
+All files in TACO ZIP archives use STORE mode (compression method = 0), meaning no compression is applied. This design choice enables efficient byte-range access in cloud storage scenarios, GDAL Virtual File System compatibility, and parallel random access patterns without decompression overhead.
+
+When a ZIP container is created, two additional metadata columns **MUST** be generated: `internal:offset` indicating the byte offset of each SAMPLE within the ZIP file, and `internal:size` indicating the length in bytes. These columns enable direct access to individual SAMPLEs without decompressing the entire archive. The ZIP format is immutable; updating metadata requires recreating the entire ZIP file.
+
+### 6.4. FOLDER Format
+
+The FOLDER format stores TACO datasets as a directory structure. Files remain directly accessible for inspection and modification without requiring extraction or decompression. This format is suitable for development environments and datasets requiring frequent updates.
+
+FOLDER format supports efficient metadata updates through Content-Defined Chunking (CDC). CDC divides parquet files into variable-sized chunks based on content rather than fixed positions, typically using algorithms such as FastCDC/Rabin–Karp with average chunk sizes around 64KB. The storage backend maintains a content-addressed store where each chunk is identified by its cryptographic hash, enabling automatic deduplication of identical chunks across versions.
+
+When metadata is updated, only chunks containing modified data need to be transferred to storage. The storage backend reconstructs files by assembling the appropriate chunks based on their hash references. This approach reduces transfer size proportionally to the magnitude of changes rather than total file size, providing significant efficiency improvements for incremental updates to large Parquet metadata files.
+
+Server support for CDC and chunk-level deduplication is required to achieve these performance characteristics. To our best knowledge, [Hugging Face's XET storage](https://huggingface.co/docs/xet/index) backend is currently the only public platform that provides this infrastructure for scientific datasets. 
+
+### 6.5. TACOCAT File
+
+TACOCAT is a consolidated file (`__TACOCAT__`) that addresses the operational challenges of managing large collections of individual TACO ZIP files. When datasets are distributed as hundreds or thousands of separate ZIP containers, querying across the collection requires opening each file individually to access its metadata. TACOCAT solves this by consolidating all metadata from multiple ZIP files into a single high-performance container.
+
+The format extracts and merges all METADATA/levelX.parquet files from source ZIP containers into consolidated Parquet files, one per hierarchy level. An additional column `internal:source_file` is added to track the original ZIP filename for each SAMPLE. This enables queries across the entire collection using a single DuckDB connection without filesystem traversal or individual ZIP file access.
+
+TACOCAT uses a fixed 128-byte binary header containing the format magic number, version identifier, maximum hierarchy depth, and a 7-entry index table. The index stores byte offsets and sizes for up to 6 consolidated metadata levels plus the merged `COLLECTION.json`. Data sections begin at byte 128 and are stored sequentially. The consolidated `COLLECTION.json` preserves the PIT schema from source datasets and includes provenance metadata listing all source ZIP filenames.
+
+When reading SAMPLEs, the GDAL VSI path is constructed as `/vsisubfile/{offset}_{size},{base_path}{source_file}` where offset and size reference the original position within the source ZIP file identified by source_file. This allows direct byte-range access to data without extracting or opening intermediate containers.
+
+### 6.6. TACOLLECTION File
+
+Tacollection is a global metadata consolidation mechanism (`TACOLLECTION.json`) for datasets distributed across multiple TACO ZIP files. When large datasets are partitioned (e.g., by region or time period), each partition contains independent `COLLECTION.json` metadata. Tacollection merges these into a unified global view.
+
+The consolidation validates that all partitions share identical `taco:pit_schema` and `taco:field_schema` structures. Sample counts are summed to compute the total dataset size. Spatial extents merge into a global bounding box, while temporal extents span from the earliest start to the latest end across all partitions.
+
+The `taco:sources` field preserves each partition's individual extents, enabling query routing: users can identify which files contain relevant data for a specific region or time window without opening every partition. The field stores partition count, IDs, filenames, and individual spatial/temporal coverage:
+
+```json
+{
+  "taco:sources": {
+    "count": 3,
+    "ids": ["europe_2023", "asia_2023", "americas_2023"],
+    "files": ["europe.tacozip", "asia.tacozip", "americas.tacozip"],
+    "extents": [
+      {
+        "file": "europe.tacozip",
+        "id": "europe_2023",
+        "spatial": [-10, 30, 45, 70],
+        "temporal": ["2023-01-01T00:00:00Z", "2023-12-31T23:59:59Z"]
+      },
+      {
+        "file": "asia.tacozip",
+        "id": "asia_2023",
+        "spatial": [60, -10, 150, 55],
+        "temporal": ["2023-01-01T00:00:00Z", "2023-12-31T23:59:59Z"]
+      },
+      {
+        "file": "americas.tacozip",
+        "id": "americas_2023",
+        "spatial": [-170, -55, -35, 75],
+        "temporal": ["2023-01-01T00:00:00Z", "2023-12-31T23:59:59Z"]
+      }
+    ]
+  }
+}
+```
+
+## 7. API Layer
+
+The TACO API provides two tools: TacoToolbox for creating datasets and TacoReader for querying them.
+
+- **TacoToolbox (Writer)** is Python-only for ease of maintenance, not technical necessity.
+
+- **TacoReader (Reader)** is designed to be easily implemented in any language with a DataFrame interface, object-oriented classes, a lazy Parquet reader with query pushdown support, and GDAL bindings for data access. This makes TacoReader viable in R, Rust, Julia, C++, and other scientific computing languages.
+
+All TacoReader and TacoToolbox **MUST** conform to the core API specification defined below. Additional features beyond the specification **MUST** be implemented in separate modules to prevent fragmentation.
+
+### 7.1. TacoToolbox (Writer API)
+
+TacoToolbox provides functionality for creating, converting, and validating TACO datasets. The API is organized around three core concepts: SAMPLE (minimal unit), TORTILLA (set of SAMPLEs), and TACO (complete dataset).
+
+#### 7.1.1. Data Model Classes
+
+**`datamodel.Sample`**
+
+Represents the minimal self-contained unit in a TACO dataset. Each SAMPLE encapsulates data and metadata.
+
+```python
+Sample(
+    id: str,                          # Unique identifier
+    type: "FILE" | "FOLDER" | "auto", # Type inference by default
+    path: Path | bytes | TORTILLA,    # Data location
+    temp_dir: Path = None,            # For bytes conversion
+    **metadata                        # Extension fields
+)
+```
+
+**Type Inference**: When `type="auto"` (default), type is automatically inferred from path. Path or bytes become a FILE, TORTILLA becomes a FOLDER. After validation, the type is always FILE or FOLDER.
+
+**Bytes Support**: When passing bytes as a path, temporary files are created automatically. Use the `temp_dir` parameter to specify the location for large datasets. Files are cleaned up on garbage collection or an explicit `cleanup()` call.
+
+**`datamodel.Tortilla`**
+
+Collection of SAMPLEs with uniform metadata schema. Validates PIT constraints.
+
+```python
+Tortilla(
+    samples: list[Sample],
+    pad_to: int = None,         # Auto-pad to divisible length
+    strict_schema: bool = True  # Enforce schema uniformity
+)
+```
+
+**Auto-Padding**: The `pad_to` parameter automatically adds padding to SAMPLEs to make the total length divisible by the specified value. Padding SAMPLEs use ID prefix `__TACOPAD__` with empty bytes, creating zero-byte temporary files.
+
+**Schema Modes**: With `strict_schema=True`, all SAMPLEs **MUST** have identical metadata schemas. With `strict_schema=False`, heterogeneous schemas are allowed with automatic None-filling for missing columns.
+
+**`datamodel.Taco`**
+
+Complete dataset extending TORTILLA with collection-level metadata.
+
+```python
+Taco(
+    tortilla: Tortilla,
+    id: str,
+    dataset_version: str,
+    description: str,
+    licenses: list[str],
+    providers: list[Contact],
+    tasks: list[TaskType],
+    taco_version: str = "2.0.0",
+    title: str = None,                # Max 250 characters
+    curators: list[Contact] = None,
+    keywords: list[str] = None,
+    extent: Extent = None             # Auto-calculated from STAC/ISTAC
+)
+```
+
+**Extent Auto-Calculation**: If extent is not provided, TACO searches incrementally through hierarchy levels for [STAC]() or [ISTAC]() metadata and computes spatial and temporal extents automatically. Defaults to global extent if no spatiotemporal metadata found.
+
+#### 7.1.2. Extension System
+
+The extension system enables adding computed or declarative metadata to SAMPLEs, TORTILLAs, and TACOs through a unified `extend_with()` interface.
+
+**SAMPLE Extensions**
+
+SAMPLE extensions add metadata fields computed from the SAMPLE's data. Extensions can be computational (implementing `SampleExtension` abstract class) or declarative (dict, DataFrame, Pydantic model).
+
+```python
+class SampleExtension(ABC):
+    schema_only: bool = False  # Return None values preserving schema
+    
+    @abstractmethod
+    def get_schema(self) -> dict[str, pl.DataType]:
+        """Return expected DataFrame schema."""
+        
+    @abstractmethod
+    def _compute(self, sample: Sample) -> pl.DataFrame:
+        """Compute metadata, return single-row DataFrame."""
+```
+
+The `schema_only` parameter enables schema-first workflows where structure is defined without computation cost. When `True`, `_compute()` is never called and None values are returned with the proper schema.
+
+Extension fields are added directly to the SAMPLE model and tracked in `_extension_schemas` for proper DataFrame serialization. Key validation ensures extension fields use valid formats: alphanumeric plus underscore, optionally with a colon for namespaces.
+
+**TORTILLA Extension**
+
+TORTILLA extensions add columns to the metadata DataFrame computed across all SAMPLEs in the collection.
+
+```python
+class TortillaExtension(ABC):
+    schema_only: bool = False
+
+    @abstractmethod
+    def get_schema(self) -> dict[str, pl.DataType]:
+        """Return expected schema."""
+
+    @abstractmethod
+    def _compute(self, tortilla: Tortilla) -> pl.DataFrame:
+        """Compute metadata, return DataFrame with one row per sample."""
+```
+
+The returned DataFrame **MUST** have exactly one row per SAMPLE. Column conflicts with existing metadata are rejected. Extensions are applied via horizontal concatenation.
+
+**TACO Extensions**
+
+TACO extensions add dataset-level computed metadata.
+
+```python
+class TacoExtension(ABC):
+    @abstractmethod
+    def get_schema(self) -> dict[str, pl.DataType]:
+        """Return schema."""
+        
+    @abstractmethod
+    def _compute(self, taco: Taco) -> pl.DataFrame:
+        """Compute metadata, return single-row DataFrame."""
+```
+
+Extension data is added as instance attributes directly to the TACO object.
+
+#### 7.1.3. Core Functions
+
+**`create(taco, output, output_format="auto", **kwargs)`**
+
+Primary function for writing TACO datasets to disk. Supports both ZIP and FOLDER container formats. Format auto-detected from extension (.zip/.tacozip -> ZIP, else -> FOLDER). Parquet parameters passed through kwargs (compression, compression_level, row_group_size).
+
+**`create_tacocat(inputs, output, **parquet_kwargs)`**
+
+Consolidates multiple ZIP containers into a single high-performance file. Merges all metadata into consolidated Parquet files with `internal:source_file` column tracking origin. Validates schema consistency across datasets. Generates a fixed-name `__TACOCAT__` file with a 128-byte binary header containing format magic, version, maximum depth, and a 7-entry index table.
+
+**`create_tacollection(inputs, output, validate_schema=True)`**
+
+Creates global `TACOLLECTION.json` from multiple datasets. Validates PIT schema structure and field schema consistency across all inputs. Sums sample counts in `taco:pit_schema` hierarchy, computing total dataset size. Merges spatial extents into a global bounding box covering all partitions, and merges temporal extents into a global time range spanning the earliest start to the latest end. Preserves individual partition extents in `taco:sources` field for query routing and visualization. Uses the first dataset as a base for other metadata fields. Always generates a standard-named `TACOLLECTION.json` file in the output directory.
+
+**`export(dataset, output, output_format="auto", quiet=False, limit=100, temp_dir=None, **kwargs)`**
+
+Exports filtered subsets of existing TACO datasets. Format auto-detected from extension (.zip/.tacozip -> ZIP, else -> FOLDER). Uses async I/O with configurable concurrency limit for remote data sources. Preserves hierarchical structure while updating collection metadata with subset provenance tracking via `taco:subset_of` and `taco:subset_date` fields. Parquet parameters passed through kwargs.
+
+#### 7.1.4. Format Conversion
+
+**`folder2zip(input, output, quiet=False, temp_dir=None, **kwargs)`**
+
+Converts FOLDER format to ZIP format. Reads existing metadata from FOLDER structure, including COLLECTION.json and consolidated metadata. Reconstructs local metadata from consolidated metadata for `__meta__` file generation. Scans the DATA directory for physical files. Uses ZipWriter to create a ZIP container with bottom-up offset calculation, regenerating all `__meta__` files with `internal:offset` and `internal:size` columns. Parquet parameters passed through kwargs.
+
+**`zip2folder(input, output, limit=100, quiet=False)`**
+
+Converts ZIP format to FOLDER format. Async operation with configurable limit for parallel file extraction. Uses ExportWriter wrapper providing progress bars unless quiet mode is enabled.
+
+#### 7.1.5. Logging Control
+
+**`verbose(level=True|"debug"|False)`**
+
+Controls logging verbosity across all TacoToolbox operations. Level `True` or `"info"` shows standard progress, including file counts and operations. Level `"debug"` shows detailed internal operations, including offset calculations and metadata processing. Level `False` disables all logging output. Settings apply globally to all subsequent operations until changed.
+
+![PIT Constraint](/image/tacotoolbox.png)
+*Overview of TacoToolbox writer API*
+
+### 7.2. TacoReader (Reader API)
+
+TacoReader provides functionality for loading and querying TACO datasets through a lazy query interface with SQL support. The API is organized around three core concepts: TacoDataset (lazy query interface), TacoDataFrame (materialized results with navigation), and PITSchema (structural validation).
+
+#### 7.2.1. Loading Datasets
+
+**`load(path, base_path=None)`**
+
+Main entry point for loading TACO datasets with automatic format detection. Supports single paths or lists with automatic concatenation if schemas are compatible.
+
+```python
+load(
+    path: str | list[str],  # Single path or list for auto-concat
+    base_path: str = None   # TACOCAT only: override ZIP locations
+)
+```
+
+**Format Detection**: Automatically detects format from path structure. TACOCAT is identified by a fixed filename `__TACOCAT__`. ZIP identified by `.tacozip` or `.zip` extensions. FOLDER identified by directory structure (default when no extension match).
+
+**List Handling**: When provided a list of paths, loads each dataset and automatically concatenates if the schemas are compatible. Empty lists raise ValueError. Single-element lists are unwrapped to a simple load operation.
+
+**TACOCAT Base Path Override**: The `base_path` parameter enables loading TACOCAT index files separate from source ZIP files. When specified, reconstructs all query views using the new base path for `/vsisubfile/` VSI path construction. Useful for distributed storage where the metadata index and data files reside in different locations.
+
+#### 7.2.2. TacoDataset - Lazy Query Interface
+
+TacoDataset provides a STAC-like metadata container with a lazy query interface supporting SQL operations. All operations create views without materializing data until the `data` attribute is accessed.
+
+**Public Metadata (STAC-like):**
+
+- `id`, `version`, `description`: Dataset identification
+- `tasks`, `extent`, `providers`, `licenses`: Dataset characteristics  
+- `title`, `curators`, `keywords`: Optional descriptive metadata
+- `pit_schema`: PIT structural schema
+- `field_schema`: Column schemas by hierarchy level
+- `collection`: Complete COLLECTION.json content
+
+**Attributes**
+
+The `data` attribute materializes the current view into a TacoDataFrame by executing the query and loading results into memory. This is where lazy evaluation ends and data becomes available for operations.
+
+The `field_schema` attribute returns a column schema dictionary from `taco:field_schema` in the collection metadata, listing available columns and their types at each hierarchy level.
+
+The `collection` attribute returns complete COLLECTION.json content with all metadata as a dictionary.
+
+**SQL Interface**
+
+The `sql(query)` method executes an SQL query, creating a new TacoDataset instance with a lazy view. Query not executed immediately, only view created. Must use `data` as the table name, which implementations auto-replace with the current view name, enabling query chaining. Query chaining example in Python:
+
+```python
+ds1 = dataset.sql("SELECT * FROM data WHERE cloud_cover < 10")
+ds2 = ds1.sql("SELECT * FROM data WHERE country = 'Peru'")  
+result = ds2.data  # Executes combined query
+```
+
+**STAC-Style Filtering**
+
+- `filter_bbox(minx, miny, maxx, maxy, geometry_col="auto", level=0)` filters by spatial bounding box using spatial query capabilities. When `geometry_col="auto"`, searches columns in priority order: `istac:geometry`, `stac:centroid`, `istac:centroid`. When `level > 0`, filters level0 samples based on children's geometry using cascading JOINs.
+
+- `filter_datetime(datetime_range, time_col="auto", level=0)` filters by temporal range using native Parquet TIMESTAMP columns. Accepts string range `"2023-01-01/2023-12-31"`, single datetime object, or tuple of datetime objects. When `time_col="auto"`, searches columns in priority order: `istac:time_start`, `stac:time_start`. Always uses `time_start`. When `level > 0`, filters level0 samples based on children's timestamps.
+
+**Cascading Joins**: Multi-level filtering uses INNER JOINs: `level0 -> level1 -> level2 -> target_level` using `internal:parent_id` foreign keys. Returns DISTINCT level0 samples whose descendants match filter criteria. JOIN strategy varies by format: ZIP/FOLDER uses parent_id referencing parent's ID string, TACOCAT uses parent_id as local index plus `internal:source_file` for disambiguation across multiple source ZIPs.
+
+#### 7.2.3. TacoDataFrame - Hierarchical Navigation
+
+TacoDataFrame wraps DataFrame with TACO-specific functionality for hierarchical navigation. Provides `read()` method for traversing nested structures.
+
+**Protected Columns**: Critical columns that **MUST NOT** be removed or altered as they are essential for hierarchical navigation. The table below lists all protected columns with their purposes and format support. All `internal:*` columns are created by TacoToolbox during dataset generation, except `internal:gdal_vsi`, which is dynamically constructed by TacoReader backends.
+
+
+| Column | Purpose | Format Support |
+|--------|---------|----------------|
+| `id` | Unique sample identifier within parent scope. Used as a primary key for lookups, references, and read() navigation by name. Must be unique among siblings. | ZIP, FOLDER, TACOCAT |
+| `type` | Sample type discriminator. Values: FILE (leaf node with data) or FOLDER (intermediate node with children). Determines navigation behavior and metadata structure. | ZIP, FOLDER, TACOCAT |
+| `internal:parent_id` | Foreign key referencing the parent sample's position in the previous level. Enables relational queries across hierarchy (level0 → level1 → level2). Value is an integer index in the parent level DataFrame. | ZIP, FOLDER, TACOCAT |
+| `internal:offset` | Byte offset in container file where sample data begins. Used to construct `/vsisubfile/` VSI paths for GDAL byte-range access without extraction. | ZIP, TACOCAT |
+| `internal:size` | Size in bytes of sample data in container. Combined with offset for `/vsisubfile/{offset}_{size},{path}` VSI path construction. | ZIP, TACOCAT |
+| `internal:gdal_vsi` | Complete GDAL Virtual File System path for direct raster access. Format varies by container: `/vsisubfile/...` for ZIP/TACOCAT, filesystem paths for FOLDER. **Dynamically constructed by reader backends.** | ZIP, FOLDER, TACOCAT |
+| `internal:source_file` | Original source ZIP filename in TACOCAT consolidated datasets. Disambiguates samples from multiple source files sharing the same parent_id values. | TACOCAT only |
+| `internal:relative_path` | Relative path from DATA/ directory. Used for filesystem navigation in FOLDER format and path reconstruction in all formats. Format: `{parent_path}/{id}` or direct `{id}` for level0. | ZIP, FOLDER, TACOCAT |
+
+TacoDataFrame wraps DataFrame with TACO-specific functionality for hierarchical navigation. Provides `read()` method for traversing nested structures.
+
+**Hierarchical Navigation**
+
+The `read(key)` method navigates to the child level by position (int) or ID (str). FILE samples return GDAL VSI path as a string, enabling direct raster access. FOLDER samples read `__meta__` file and return TacoDataFrame with children.
+
+Path construction varies by format:
+
+- **ZIP**: `/vsisubfile/{offset}_{size},{zip_path}` enables GDAL byte-range access without extraction
+
+- **FOLDER**: Direct filesystem paths `{parent_path}/{relative_path}` or `{parent_path}/{id}`
+
+- **TACOCAT**: `/vsisubfile/{offset}_{size},{base_path}{source_file}` enabling byte-range access across multiple source ZIPs
+
+Navigation example:
+```python
+tdf = dataset.data
+child = tdf.read(0)           # By position
+child = tdf.read("sample_01") # By ID  
+vsi_path = tdf.read(5)        # Returns str if FILE
+```
+
+#### 7.2.4. Concatenation
+
+**`concat(datasets, column_mode="intersection")`**
+
+Concatenates multiple TacoDataset instances into a single dataset with a lazy query interface. Creates consolidated metadata views **without disk materialization**.
+
+**Column Modes**:
+
+- `intersection` mode (default, safest) keeps only columns present in ALL datasets. Drops columns existing only in some datasets with a warning showing which columns were dropped and from which datasets. Suitable when datasets have slight schema variations and only common columns are needed.
+
+- `fill_missing` mode keeps all columns from all datasets, filling missing columns with NULL. Warns showing which columns are being filled and in which datasets. Suitable when all columns are needed, even if some datasets lack them.
+
+- `strict` mode fails if columns differ between datasets. Raises ValueError with a detailed breakdown showing exact schema per dataset, columns only in some datasets, and columns common to all. Suitable for production pipelines requiring schema homogeneity.
+
+**View Construction**: Creates query views combining all datasets with `internal:source_file` column tracking origin dataset. Filters padding samples (`__TACOPAD__N`) from user-facing views. Constructs `internal:gdal_vsi` paths per format for data access.
+
+#### 7.2.5. Backend System
+
+Three backends handle format-specific loading strategies, sharing a common interface through an abstract base class.
+
+- **ZipBackend** reads `.tacozip` format using TACO_HEADER at file start for direct offset-based access without full ZIP extraction. Constructs VSI paths as `/vsisubfile/{offset}_{size},{zip_path}`, enabling GDAL byte-range access.
+
+- **FolderBackend** reads the directory structure with loose files. Level 0 constructs paths as `{root}DATA/{id}`, level 1+ uses `{root}DATA/{internal:relative_path}`.
+
+- **TacoCatBackend** reads consolidated format from multiple source ZIPs. Parses a fixed 128-byte binary header containing format magic, version, max depth, and a 7-entry index table. Loads entire file to memory (typically <1GB metadata-only). Constructs VSI paths as `/vsisubfile/{offset}_{size},{base_path}{source_file}` where `source_file` column identifies origin ZIP.
+ 
+#### 7.2.6. Logging Control
+
+**`verbose(level=True|"debug"|False)`**
+
+Controls logging verbosity across all TacoReader operations. Level `True` or `"info"` shows standard progress, including file loading, backend operations, and view creation. Level `"debug"` shows detailed internal operations including DuckDB queries, offset calculations, and memory operations. Level `False` disables all logging output. Settings apply globally to all subsequent operations until changed.
+
+![TacoReader](/image/tacoreader.png)
+*Overview of TacoReader writer API*
+
+## 8. Version Compatibility
+
+TACO v2.0.0 is **NOT backward compatible** with v1.x datasets. Existing v1.x datasets **MUST** be migrated or recreated to work with v2.0.0 tools. Key breaking changes include:
+
+- **PIT Enforcement**: v2.0.0 requires strict PIT compliance at all hierarchy levels. v1.x allowed heterogeneous structures where siblings could differ in child count or organization.
+
+- **Metadata Schema**: Core metadata fields have been renamed, removed, or changed types. Field names now use namespace prefixes (e.g., `stac:*`, `istac:*`) for clarity and extensibility.
+
+- **Extension Mechanism**: v2.0.0 introduces a unified extension system with `extend_with()` interface applicable to SAMPLEs, TORTILLAs, and TACOs. v1.x used separate, incompatible extension approaches for each level.
+
+- **Container Formats**: v2.0.0 uses standard ZIP archives and directory structures (FOLDER) accessible with generic tools. v1.x relied on a custom BLOB format requiring specialized readers.
+
+- **Dual Metadata System**: v2.0.0 implements both consolidated metadata (`METADATA/levelX.parquet`) for SQL queries and local metadata (`__meta__` files) for navigation. v1.x supported only local metadata, requiring full traversal for dataset-wide operations.
+
+- **API Redesign**: TacoToolbox and TacoReader have been completely redesigned with breaking changes to function signatures and class interfaces.
+
+---
+
+## Annex A: Glossary
+
+- **Container Format**: Physical storage structure for TACO datasets. Two formats supported: ZIP (compressed archive) and FOLDER (directory structure).
+
+- **Consolidated Metadata**: Parquet files containing all sample metadata for a hierarchy level. Stored as `METADATA/level0.parquet`, `METADATA/level1.parquet`, etc. Enables efficient SQL queries without traversing individual samples.
+
+- **Extension**: Modular mechanism for adding domain-specific metadata to SAMPLEs, or TACOs. Extensions define schema and computation logic, enabling standardized metadata enrichment.
+
+- **Hierarchical Navigation**: Traversal through nested FOLDER samples using `read()` method. Each level represents a containment relationship (e.g., country -> region -> scene).
+
+- **Local Metadata**: Sample-specific metadata stored in `__meta__` files within FOLDER samples. Contains children's metadata for direct filesystem access without consolidated files.
+
+- **PIT (Position-Invariant Tree)**: Structural constraint ensuring all root samples at the same hierarchy level share identical structure.
+
+- **Sample**: Atomic unit in TACO datasets. Can be a FILE (leaf node with data) or a FOLDER (intermediate node with children). Each sample has a unique ID within the parent scope.
+
+- **STAC (SpatioTemporal Asset Catalog)**: Open standard for geospatial metadata. TACO provides STAC-compatible metadata structure while adding hierarchical organization and validation.
+
+- **TACO**: Complete dataset with collection-level metadata (licenses, providers, extent). Contains one TORTILLA with all samples plus descriptive metadata.
+
+- **TACOCAT**: Consolidated format merging multiple TACO ZIP datasets into a single file with a 128-byte binary header and index table. Optimized for querying large collections without opening individual ZIPs.
+
+- **TORTILLA**: Collection of samples with uniform metadata schema. Building block for TACO datasets.
+
+- **VSI Path**: GDAL Virtual File System path format. Enables direct raster access from compressed archives using `/vsisubfile/{offset}_{size},{path}` syntax for byte-range reads.
+
+---
+
+## Annex B: History
+
+TACO was born in Valencia, Spain, at the Image and Signal Processing ([ISP](https://isp.uv.es/)) group of the Universitat de València. Every Friday, we met at [TKOTACO](https://tkotacos.com/) - a one-euro taco restaurant - to talk about series, anime, memes, data, and sometimes new deep learning papers. The regular crew was Julio Contreras, Oscar Pellicer, Simon Donike, Chen Ma ([HIT](https://en.hit.edu.cn/)), and me (@csaybar). When David Montero ([University of Leipzig](https://rsc4earth.de/)) visited, he always joined us.
+
+During one of those Friday meetings, frustrated after spending over a month harmonizing deep learning datasets for cloud detection, we sketched a general solution. We wanted something simple for our problems and ISP datasets. That day, TACOv1 was born - a format with a new BLOB structure and Parquet metadata. The idea was simple: build the infrastructure around GDAL and the DataFrame concept. We converted some datasets to TACOv1, shared the idea with friends, and got valuable feedback.
+
+The format had many flaws, but the core idea was sound. At ESA Living Planet 2025, I had the opportunity to meet several people who shaped TACOv2. Jérémy Anger ([Kayrros](https://www.kayrros.com/)/[Université Paris-Saclay](https://www.universite-paris-saclay.fr/)) suggested we abandon the custom BLOB format and use ZIP instead - this became a turning point. Now that we have [tacozip](https://github.com/tacofoundation/tacozip), we're happy we listened to his advice. Around the same event, conversations with Mikolaj Czerkawski ([Asterisk](https://asterisk.coop/)) about MajorTOM helped us address another critical challenge: designing strategies for large datasets where metadata becomes a bottleneck. His insights on data access patterns influenced much of our lazy loading architecture. Nils Lehmann and Adam Stewart ([University of Munich](https://ai4eo.de/), [TorchGeo](https://github.com/torchgeo/torchgeo)) brought years of experience working with deep learning datasets, which proved critical for many API design decisions we made.
+
+Recently, Nate Mankovich ([ISP](https://isp.uv.es/)) helped us refine the idea from a more mathematical and formal perspective. With his assistance, we defined PIT (Position-Invariant Tree), which became the foundation of TACOv2. Luis Gómez-Chova and Gustau Camps-Valls ([ISP](https://isp.uv.es/)) have been discussing what TACO is and should be since day one - many of their ideas are embedded in the code. I'm grateful for their support from the very beginning. They are technically our supervisors, but to us, they feel more like fellow PhD students.
+
+That's it, TACO 🌮. What makes me happiest about this framework is that it emerged around universities, outside all the deep learning hype, among friends laughing about life while coding or writing papers. TACO's code is open source and always will be. Thank you for reading this far.
